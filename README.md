@@ -1,2 +1,2 @@
 # FoC - Project
-Project for the Foundations of Cybersecurity course
+Project for Foundations of Cybersecurity course
