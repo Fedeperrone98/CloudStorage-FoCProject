@@ -1,0 +1,10 @@
+Per ogni client:
+- pubkey client
+- prvkey client (protetta da password)
+- certificato client
+
+Supponiamo di avere 4 client:
+-Alice
+-Bob
+-Carol
+-Dave

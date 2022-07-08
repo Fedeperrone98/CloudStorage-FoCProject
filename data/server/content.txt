@@ -1,0 +1,14 @@
+- certificato server
+- pubkey server
+- prvkey server
+
+Per ogni client
+- pubkey client
+- dedicated storage (i file vengono memorizzati nella stessa cartella in cui sono contenuti
+                     pubkey e certificato)
+
+Supponiamo di avere 4 client:
+-Alice
+-Bob
+-Carol
+-Dave
