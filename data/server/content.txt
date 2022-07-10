@@ -1,6 +1,10 @@
+- certificato CA
+- crl 
+
 - certificato server
 - pubkey server
 - prvkey server
+(password server)
 
 Per ogni client
 - pubkey client

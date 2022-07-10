@@ -1,10 +1,14 @@
+- certificato CA
+- crl 
+- non deve contenere il cert e la pubkey del server perché queste vengono mandate in fase di autenticazione
+
 Per ogni client:
 - pubkey client
 - prvkey client (protetta da password)
 - certificato client
 
 Supponiamo di avere 4 client:
--Alice
--Bob
--Carol
--Dave
+-Alice (username: alice     password: alice)
+-Bob (username: bob     password: bobb)
+-Carol (username: carol     password: carol)
+-Dave (username: dave     password: dave)
