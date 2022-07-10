@@ -1,14 +1,21 @@
-#include <openssl/rand.h>
-#include <openssl/x509.h>
-#include <openssl/x509_vfy.h>
-#include <openssl/evp.h>
-#include <openssl/pem.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include <stdio.h>
+#include "include/crypto.h"
 
 using namespace std;
+
+void CryptoOperation::handleErrors(void){
+	ERR_print_errors_fp(stderr);
+	abort();
+}
+
+void CryptoOperation::generateNonce(unsigned char* nonce){
+    if(RAND_poll() != 1){
+        handleErrors();
+    }
+
+    if(RAND_bytes(nonce, constants::NONCE_SIZE)!=1){
+        handleErrors();
+    }
+}
 
 //function that return Diffie-Hellman low level parameters
 static DH *get_dh2048(void)
@@ -59,4 +66,46 @@ static DH *get_dh2048(void)
         return NULL;
     }
     return dh;
+}
+
+EVP_PKEY* CryptoOperation::generateDHParams(){
+    int ret;
+    EVP_PKEY* DHparams;
+    EVP_PKEY_CTX* DHctx;
+    EVP_PKEY* dhPrivateKey;
+
+    DHparams= EVP_PKEY_new();
+    if(DHparams == NULL){
+        handleErrors();
+    }
+
+    DH* temp = get_dh2048();
+
+    ret= EVP_PKEY_set1_DH(DHparams, temp);
+    if(ret!=1){
+        handleErrors();
+    }
+
+    DH_free(temp);
+
+    DHctx= EVP_PKEY_CTX_new(DHparams, NULL);
+    if(DHctx==NULL){
+        handleErrors();
+    }
+
+    ret= EVP_PKEY_keygen_init(DHctx);
+    if(ret!=1){
+        handleErrors();
+    }
+
+    dhPrivateKey=NULL;
+    ret= EVP_PKEY_keygen(DHctx, &dhPrivateKey);
+    if(ret!=1){
+        handleErrors();
+    }
+
+    EVP_PKEY_CTX_free(DHctx);
+    EVP_PKEY_free(DHparams);
+
+    return dhPrivateKey;
 }
