@@ -295,8 +295,6 @@ void CryptoOperation::signatureFunction(unsigned char * plaintext, int dimpt, un
         handleErrors();
     }
 
-    //PROBLEMA: SE IL PT è GRANDE COME FACCIO A FARE PIù UPDATE???
-    ?
     ret= EVP_SignUpdate(signCtx, plaintext, dimpt);
     if(ret==0){
         handleErrors();
