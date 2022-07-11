@@ -326,8 +326,6 @@ bool CryptoOperation::verifySignature (unsigned char* signature,  unsigned char*
         handleErrors();
     }
 
-    //PROBLEMA: SE IL unsigned_msg è GRANDE COME FACCIO A FARE PIù UPDATE???
-    ?
     ret= EVP_VerifyUpdate(signCtx, unsigned_msg, unsigned_size);
     if(ret!=1){
         handleErrors();
