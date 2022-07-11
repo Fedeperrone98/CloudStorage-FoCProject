@@ -19,5 +19,18 @@ class CryptoOperation {
 
         void generateNonce(unsigned char* nonce);
 
-        EVP_PKEY* CryptoOperation::generateDHParams();
+        //key
+        EVP_PKEY* generateDHParams();
+        EVP_PKEY*  getUserPbkey(string username);
+        EVP_PKEY* readPrivateKey(string username, string pwd, string who);
+
+        //certificate
+        void loadCertificate(X509*& cert, string path);
+        void loadCRL(X509_CRL*& crl);
+        bool verifyCertificate(X509* cert_to_verify);
+        void getPublicKeyFromCertificate(X509 *cert, EVP_PKEY *&pubkey);
+
+        //digital signature
+        void signatureFunction(unsigned char * plaintext, int dimpt, unsigned char* signature, int* signatureLen, EVP_PKEY* myPrivK);
+        bool verifySignature (unsigned char* signature,  unsigned char* unsigned_msg, int signature_size, int unsigned_size, EVP_PKEY* pubkey);
 };

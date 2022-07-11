@@ -1,4 +1,5 @@
 #include "include/crypto.h"
+#include "util.cpp"
 
 using namespace std;
 
@@ -7,6 +8,7 @@ void CryptoOperation::handleErrors(void){
 	abort();
 }
 
+//function that generate a nonce of NONCE_SIZE
 void CryptoOperation::generateNonce(unsigned char* nonce){
     if(RAND_poll() != 1){
         handleErrors();
@@ -16,6 +18,8 @@ void CryptoOperation::generateNonce(unsigned char* nonce){
         handleErrors();
     }
 }
+
+//key 
 
 //function that return Diffie-Hellman low level parameters
 static DH *get_dh2048(void)
@@ -68,6 +72,7 @@ static DH *get_dh2048(void)
     return dh;
 }
 
+//function that allocates and generates Diffie-Hellman private key
 EVP_PKEY* CryptoOperation::generateDHParams(){
     int ret;
     EVP_PKEY* DHparams;
@@ -108,4 +113,232 @@ EVP_PKEY* CryptoOperation::generateDHParams(){
     EVP_PKEY_free(DHparams);
 
     return dhPrivateKey;
+}
+
+//function that return user public key
+EVP_PKEY*  CryptoOperation::getUserPbkey(string username){
+    EVP_PKEY* pubkey;
+
+    string path = constants::DIR_CLIENTS + username + "/" + username + constants::SUFFIX_PUBKEY;
+    FILE* file = fopen(path.c_str(), "r");
+    if(!file){
+        perror("cannot open the user pubKey file");
+        exit(-1);
+    }
+
+    pubkey= PEM_read_PUBKEY(file, NULL, NULL, NULL);
+    if(!pubkey){
+        fclose(file);
+        handleErrors();
+    }
+
+    fclose(file);
+
+    return pubkey;
+}
+
+//function that return user private key or the server private key
+EVP_PKEY* CryptoOperation::readPrivateKey(string username, string pwd, string who){
+    EVP_PKEY* prvkey;
+    string path;
+
+    if(who == "server" ){
+        path = constants::DIR_SERVER + username + constants::SUFFIX_PRVKEY;
+    }else{
+        path = constants::DIR_CLIENTS + username + "/" + username + constants::SUFFIX_PRVKEY;
+    }
+
+    FILE* file = fopen(path.c_str(), "r");
+    if(!file){
+        perror("cannot open the user prvKey file");
+        exit(-1);
+    }
+
+    prvkey= PEM_read_PrivateKey(file, NULL, NULL, (char*)pwd.c_str());
+    if(!prvkey){
+        fclose(file);
+        handleErrors();
+    }
+
+    fclose(file);
+
+    return prvkey;
+}
+
+//certificate
+
+//function that load the certificate of the server or of the CA
+void CryptoOperation::loadCertificate(X509*& cert, string who){
+    string path;
+
+    if(who=="server"){
+        path= constants::NAME_SERVER_CERT;
+    }else{
+        path= constants::NAME_CA_CERT;
+    }
+
+    FILE* file= fopen(path.c_str(), "r");
+    if(!file){
+        perror("cannot open the cert file");
+        exit(-1);
+    }
+
+    cert= PEM_read_X509(file, NULL, NULL, NULL);
+    if(!cert){
+        fclose(file);
+        handleErrors();
+    }
+
+    fclose(file);
+}
+
+//function that load the crl of the CA
+void CryptoOperation::loadCRL(X509_CRL*& crl){
+    string path= constants::NAME_CA_CRL;
+
+    FILE* file = fopen(path.c_str(), "r");
+    if(!file){
+        perror("cannot open the crl file");
+        exit(-1);
+    }
+
+    crl= PEM_read_X509_CRL(file, NULL, NULL, NULL);
+    if(!crl){
+        fclose(file);
+        handleErrors();
+    }
+
+    fclose(file);
+}
+
+//function that verify the certificate and returns true if the certificate is verified
+bool CryptoOperation::verifyCertificate(X509* cert_to_verify){
+    int ret;
+
+    X509_STORE_CTX* ctx = X509_STORE_CTX_new();
+    if(!ctx){
+        handleErrors();
+    }
+
+    X509* ca_cert;
+    X509_STORE* store;
+    X509_CRL* crl;
+
+    loadCertificate(ca_cert, "ca");
+    loadCRL(crl);
+
+    store= X509_STORE_new();
+    if(!store){
+        handleErrors();
+    }
+
+    try{
+        ret= X509_STORE_add_cert(store, ca_cert);
+        if(ret<1){
+            handleErrors();
+        }
+
+        ret= X509_STORE_add_crl(store, crl);
+        if(ret<1){
+            handleErrors();
+        }
+
+        ret= X509_STORE_set_flags(store, X509_V_FLAG_CRL_CHECK);
+        if(ret<1){
+            handleErrors();
+        }
+
+        ret=X509_STORE_CTX_init(ctx, store, cert_to_verify, NULL);
+        if(ret<1){
+            handleErrors();
+        }
+
+    }catch(const exception& e){
+        X509_STORE_free(store);
+        throw;
+    }
+
+    ret= X509_verify_cert(ctx);
+    if(ret!=1){
+        int err = X509_STORE_CTX_get_error(ctx);
+        cerr << X509_verify_cert_error_string(err) << endl;
+        X509_STORE_free(store);
+        X509_STORE_CTX_free(ctx);
+        return false;
+    }
+
+    X509_STORE_free(store);
+    X509_STORE_CTX_free(ctx);
+    return true;
+}
+
+void CryptoOperation::getPublicKeyFromCertificate(X509 *cert, EVP_PKEY *&pubkey){
+    pubkey = X509_get_pubkey(cert);
+    if(!pubkey){
+        handleErrors();
+    }
+}
+
+//digital signature
+
+//function that return the signature for a given plaintext and in signatureLen its length
+void CryptoOperation::signatureFunction(unsigned char * plaintext, int dimpt, unsigned char* signature, int* signatureLen, EVP_PKEY* myPrivK){
+    int ret;
+
+    EVP_MD_CTX* signCtx= EVP_MD_CTX_new();
+    if(!signCtx){
+        handleErrors();
+    }
+
+    ret= EVP_SignInit(signCtx, EVP_sha256());
+    if(ret==0){
+        handleErrors();
+    }
+
+    //PROBLEMA: SE IL PT è GRANDE COME FACCIO A FARE PIù UPDATE???
+    ?
+    ret= EVP_SignUpdate(signCtx, plaintext, dimpt);
+    if(ret==0){
+        handleErrors();
+    }
+
+    ret = EVP_SignFinal(signCtx, (unsigned char*)signature, (unsigned int*)signatureLen, myPrivK);
+    if(ret==0){
+        handleErrors();
+    }
+
+    EVP_MD_CTX_free(signCtx);
+
+    return;
+}
+
+//function wthat verifies the signature
+bool CryptoOperation::verifySignature (unsigned char* signature,  unsigned char* unsigned_msg, int signature_size, int unsigned_size, EVP_PKEY* pubkey){
+    int ret;
+
+    EVP_MD_CTX* signCtx= EVP_MD_CTX_new();
+    if(!signCtx){
+        handleErrors();
+    }
+
+    ret= EVP_VerifyInit(signCtx, EVP_sha256());
+    if(ret!=1){
+        handleErrors();
+    }
+
+    //PROBLEMA: SE IL unsigned_msg è GRANDE COME FACCIO A FARE PIù UPDATE???
+    ?
+    ret= EVP_VerifyUpdate(signCtx, unsigned_msg, unsigned_size);
+    if(ret!=1){
+        handleErrors();
+    }
+
+    ret= EVP_VerifyFinal(signCtx, signature, signature_size, pubkey);
+    if(ret!=1){
+        EVP_MD_CTX_free(signCtx);
+        return false;
+    }
+    
+    EVP_MD_CTX_free(signCtx);
+    return true;
 }
