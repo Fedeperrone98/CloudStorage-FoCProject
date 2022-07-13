@@ -2,6 +2,10 @@
 #define CONSTANTS_H
 namespace constants
 {
+    constexpr unsigned int MAX_CLIENTS = 10;
+    constexpr unsigned int SERVER_PORT = 4242;
+    constexpr const char* LOCAL_HOST ="127.0.0.1";
+
     constexpr unsigned int NONCE_SIZE = 16;
     constexpr unsigned int TAG_LEN = 16;
     constexpr unsigned int IV_LEN = 12;
