@@ -50,7 +50,7 @@ int main(int argc, char* const argv[]) {
 		exit(-1);	
 	}
 
-    cout << "Connection esyablished" << endl;
+    cout << "Connection established" << endl;
 
     return 0;
 }
