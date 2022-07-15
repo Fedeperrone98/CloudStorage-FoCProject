@@ -26,6 +26,20 @@ namespace constants
     constexpr const char* NAME_CA_CERT = "./data/server/FoundationsOfCybersecurity_cert.pem";
     constexpr unsigned int DIM_NAME_CA_CERT = 50;
     constexpr const char* NAME_CA_CRL = "./data/server/FoundationsOfCybersecurity_crl.pem";
-    constexpr unsigned int DIM_NAME_CA_CRL = 49;    
+    constexpr unsigned int DIM_NAME_CA_CRL = 49;
+
+    //TYPE CODE
+    constexpr const char Update_request = 0x01;
+    constexpr const char Acknowledgment = 0x02;
+    constexpr const char Not_acknowledgment = 0x03;
+    constexpr const char File_content = 0x04;
+    constexpr const char Download_request = 0x05;
+    constexpr const char Size = 0x06;
+    constexpr const char Delete_request = 0x07;
+    constexpr const char Ask_confirmation = 0x08;
+    constexpr const char List_request = 0x09;
+    constexpr const char List_file = 0x10;
+    constexpr const char Rename_request = 0x11;
+    constexpr const char Logout_request = 0x12;
 }
 #endif
