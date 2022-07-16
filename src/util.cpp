@@ -37,8 +37,9 @@ void IncControl(int a){
 	}
 }
 
-void send_obj (int sock, unsigned char* buf, size_t len){		
 //Send the message via socket
+void send_obj (int sock, unsigned char* buf, size_t len){		
+
 	uint32_t dim_obj = htonl(len);
 	ssize_t no_err;
 	
@@ -50,8 +51,9 @@ void send_obj (int sock, unsigned char* buf, size_t len){
 	}
 }
 
-void receive_obj (int socket_com, unsigned char* buf, int dim_buf){
 //Receive the message via socket
+void receive_obj (int socket_com, unsigned char* buf, int dim_buf){
+
 	ssize_t no_err = recv(socket_com, buf, dim_buf, MSG_WAITALL);
 	
 	if (no_err < dim_buf || no_err == -1){
@@ -71,8 +73,9 @@ void send_int(int sock, size_t len){
 	}
 }
 
-int receive_len (int socket_com){
 //Receive the length of the message via socket
+int receive_len (int socket_com){
+
 	ssize_t no_err;
 	uint32_t dim_network;
 	no_err = recv(socket_com, &dim_network, sizeof(uint32_t), MSG_WAITALL);

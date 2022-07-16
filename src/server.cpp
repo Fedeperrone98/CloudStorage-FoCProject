@@ -58,7 +58,7 @@ int main(int argc, char* const argv[]) {
         exit(-1);
     }
 
-    cout << "Server is listening" << endl;
+    cout << "Server is listening..." << endl;
 
     //aggiungo il socket di ascolto al set di descrittori 
     FD_SET(listener, &master);
@@ -94,12 +94,17 @@ int main(int argc, char* const argv[]) {
                     }
 
                 }else{ //il descrittore pronto non è il listener, ma un altro (socket di comunicazione con i client)
+                    
+                    //*************************************************************************************************************
+                    //              FASE DI AUTENTICAZIONE
+                    //*************************************************************************************************************
+                    cout << "Received a connection request" << endl;
+                    cout << "Start the AUTHENTICATION PHASE..." << endl << endl;
 
-                    //fase di autenticazione
                     char username[constants::DIM_USERNAME];
                     receive_obj(new_fd, (unsigned char*)username, constants::DIM_USERNAME);
 
-                    cout << "Connection with client: " << username << endl;
+                    cout << "Connection with client: \"" << username << "\"" << endl;
 
                     const string path= "."+(string)constants::DIR_SERVER + (string)username;
                     
@@ -107,11 +112,15 @@ int main(int argc, char* const argv[]) {
                     const auto existingDir = processWorkingDir / path;
 
                     if(fs::is_directory(path))
-                        cout << "registered user" << endl;
+                        cout << "The user \"" << username << "\" is a registered user" << endl;
                     else{
-                        cout << "not registered user" << endl;
+                        cout << "The user \"" << username << "\" is a not registered user" << endl;
                         close(new_fd);
                     }
+
+                    //genero N_s
+
+                    //carico il certificato del server
                 }
             }
         }

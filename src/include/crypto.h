@@ -29,6 +29,8 @@ class CryptoOperation {
         void loadCRL(X509_CRL*& crl);
         bool verifyCertificate(X509* cert_to_verify);
         void getPublicKeyFromCertificate(X509 *cert, EVP_PKEY *&pubkey);
+        unsigned int serializeCertificate(X509* cert, unsigned char* cert_buf);
+        void deserializeCertificate(int cert_len,unsigned char* cert_buff, X509*& buff);
 
         //digital signature
         void signatureFunction(unsigned char * plaintext, int dimpt, unsigned char* signature, int* signatureLen, EVP_PKEY* myPrivK);

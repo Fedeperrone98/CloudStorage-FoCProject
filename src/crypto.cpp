@@ -279,6 +279,24 @@ void CryptoOperation::getPublicKeyFromCertificate(X509 *cert, EVP_PKEY *&pubkey)
     }
 }
 
+unsigned int CryptoOperation::serializeCertificate(X509* cert, unsigned char* cert_buf){
+    int cert_size = i2d_X509(cert,&cert_buf);
+    if(cert_size < 0) {
+        handleErrors();
+    }
+
+    return cert_size;
+}
+
+void CryptoOperation::deserializeCertificate(int cert_len,unsigned char* cert_buff, X509*& buff){
+
+    cout << "cert_len" << cert_len << endl;
+    buff = d2i_X509(NULL,(const unsigned char**)&cert_buff,cert_len);
+    if(!buff) {
+        handleErrors();
+    }
+}
+
 //digital signature
 
 //function that return the signature for a given plaintext and in signatureLen its length

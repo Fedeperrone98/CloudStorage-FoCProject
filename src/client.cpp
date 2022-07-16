@@ -35,8 +35,23 @@ int main(int argc, char* const argv[]) {
     bool rett;
     char username[constants::DIM_USERNAME];
 
-    do{
-        cout << "Insert your username:" << endl;
+    cout << "Please, insert your username:" << endl;
+    memset(username, 0, constants::DIM_USERNAME);
+    if(!fgets(username, constants::DIM_USERNAME, stdin)){
+        perror("Error during the reading from stdin\n");
+        exit(-1);
+    }
+    char * charPointer;
+    charPointer = strchr(username, '\n');
+    if(charPointer)
+        *charPointer = '\0';
+
+    //controllo che lo username non contenga caratteri speciali
+    rett = control_white_list(username);
+
+    while(!rett){
+        cout << "Username not valid" << endl;
+        cout << "Please, insert a valid username:" << endl;
         memset(username, 0, constants::DIM_USERNAME);
         if(!fgets(username, constants::DIM_USERNAME, stdin)){
             perror("Error during the reading from stdin\n");
@@ -49,7 +64,7 @@ int main(int argc, char* const argv[]) {
 
         //controllo che lo username non contenga caratteri speciali
         rett = control_white_list(username);
-    }while(!rett);
+    }
 
     int sd; //descrittore del socket
     sd= socket(AF_INET,SOCK_STREAM, 0);
@@ -68,6 +83,12 @@ int main(int argc, char* const argv[]) {
 	}
 
     cout << "Connection established" << endl;
+
+    //*************************************************************************************************************
+    //              FASE DI AUTENTICAZIONE
+    //*************************************************************************************************************
+
+    cout << "Start the AUTHENTICATION PHASE..." << endl << endl;
 
     send_obj(sd, (unsigned char*)username, constants::DIM_USERNAME);
 
