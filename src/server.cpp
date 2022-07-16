@@ -18,8 +18,8 @@ using namespace std;
 namespace fs = std::experimental::filesystem;
 
 struct user{
-    string username;
-    string cloudStorage;
+    char username[constants::DIM_USERNAME];
+    char* cloudStorage=NULL;
 
     unsigned int count_client =0;
     unsigned int count_server=0;
@@ -117,7 +117,7 @@ int main(int argc, char* const argv[]) {
 
                     cout << "Connection with client: \"" << username << "\"" << endl;
 
-                    const string path= "."+(string)constants::DIR_SERVER + (string)username;
+                    string path= "."+(string)constants::DIR_SERVER + (string)username;
                     
                     const auto processWorkingDir = fs::current_path();
                     const auto existingDir = processWorkingDir / path;
@@ -129,13 +129,22 @@ int main(int argc, char* const argv[]) {
                         close(new_fd);
                     }
 
-                    users[n_users]->username = username;
-                    users[n_users]->cloudStorage = path;
+                    memcpy(users[n_users]->username, username, constants::DIM_USERNAME);
+                     cout << "ok1.1" <<endl;
+                    //users[n_users]->cloudStorage = path;
+                    //strncpy(users[n_users]->cloudStorage, path.c_str(), path.length());
+                    //users[n_users]->cloudStorage[path.length()]='\0';
+                    memcpy(users[n_users]->cloudStorage, path.c_str(), path.length());
+                    cout << "ok1.2" <<endl;
                     n_users++;
+
+                    cout << "ok1" <<endl;
 
                     //genero N_s
                     unsigned char nonce_s[constants::NONCE_SIZE];
                     generateNonce(nonce_s);
+
+                    cout << "ok2" <<endl;
 
                     //carico il certificato del server
                     X509* cert_server;
@@ -143,6 +152,8 @@ int main(int argc, char* const argv[]) {
                     //buffer che conterrà la serializzazione del certificato
                     unsigned char* cert_buf = NULL;
                     unsigned int size_cert = serializeCertificate(cert_server, cert_buf);
+
+                    cout << "ok3" <<endl;
 
                     sumControl(constants::NONCE_SIZE, size_cert);
 

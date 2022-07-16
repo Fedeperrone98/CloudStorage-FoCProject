@@ -97,6 +97,7 @@ int main(int argc, char* const argv[]) {
 
     receive_obj(sd, msg, size_msg);
 
+    cout << "ricevuto certificato " << endl;
 
 
     return 0;
