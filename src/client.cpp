@@ -92,5 +92,12 @@ int main(int argc, char* const argv[]) {
 
     send_obj(sd, (unsigned char*)username, constants::DIM_USERNAME);
 
+    int size_msg = receive_len(sd);
+    unsigned char msg[size_msg];
+
+    receive_obj(sd, msg, size_msg);
+
+
+
     return 0;
 }
