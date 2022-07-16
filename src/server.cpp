@@ -10,6 +10,8 @@
 #include <netinet/in.h>
 #include "include/server.h"
 #include "include/constants.h"
+#include "util.cpp"
+#include <filesystem>
 
 using namespace std;
 
@@ -92,6 +94,13 @@ int main(int argc, char* const argv[]) {
                 }else{ //il descrittore pronto non è il listener, ma un altro (socket di comunicazione con i client)
 
                     //fase di autenticazione
+                    char username[constants::DIM_USERNAME];
+                    receive_obj(new_fd, (unsigned char*)username, constants::DIM_USERNAME);
+
+                    cout << "Connection with client: " << username << endl;
+
+                    string path= (string)constants::DIR_SERVER + (string)username;
+                    namespace fs = std::filesystem;
 
                 }
             }

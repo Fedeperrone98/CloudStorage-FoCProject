@@ -88,3 +88,39 @@ int receive_len (int socket_com){
 	return dim_buf;
 }
 
+string canonicalization(string path){
+	
+	char* canon_path = realpath(path.c_str(), NULL);
+	if(!canon_path){
+		perror("error canonicalization");
+		exit(-1);
+	}
+
+	return canon_path;
+}
+
+//concat src at the end of dest
+void concatElements(unsigned char* dest, unsigned char* src, int destLen, int srcLen){
+	sumControl(destLen, srcLen);
+	memcpy(dest + destLen, src, srcLen);
+}
+
+//concate two sources in one other array
+void concat2Elements(unsigned char* dest, unsigned char* src1, unsigned char* src2, int len1, int len2){
+	if(!src1 || !src2){
+		printf("Invalid input\n");
+		exit(-1);
+	}
+	sumControl(len1, len2);
+	memset(dest, 0, len1 + len2);
+	memcpy(dest, src1, len1);
+	memcpy(dest + len1, src2, len2);
+}
+
+bool control_white_list(string str){
+	static char * ok_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890_";
+    if(str.find_first_not_of(ok_chars) != string::npos){
+		return false;
+	}
+	return true;
+}

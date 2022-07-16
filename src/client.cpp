@@ -32,18 +32,25 @@ int main(int argc, char* const argv[]) {
             scanf("%d", &port);;
     }
 
-    cout << "Insert your username" << endl;
+    bool rett;
     char username[constants::DIM_USERNAME];
-    memset(username, 0, constants::DIM_USERNAME);
-    if(fgets(username, constants::DIM_USERNAME, stdin)){
-        perror("Error during the reading from stdin\n");
-        exit(-1);
-    }
-    char * charPointer;
-    charPointer = strchr(username, '\n');
-	if(charPointer)
-		*charPointer = '\0';
-    
+
+    do{
+        cout << "Insert your username:" << endl;
+        memset(username, 0, constants::DIM_USERNAME);
+        if(!fgets(username, constants::DIM_USERNAME, stdin)){
+            perror("Error during the reading from stdin\n");
+            exit(-1);
+        }
+        char * charPointer;
+        charPointer = strchr(username, '\n');
+        if(charPointer)
+            *charPointer = '\0';
+
+        //controllo che lo username non contenga caratteri speciali
+        rett = control_white_list(username);
+    }while(!rett);
+
     int sd; //descrittore del socket
     sd= socket(AF_INET,SOCK_STREAM, 0);
 
