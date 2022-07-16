@@ -128,13 +128,12 @@ int main(int argc, char* const argv[]) {
                     if(fs::is_directory(path))
                         cout << "The user \"" << username << "\" is a registered user" << endl;
                     else{
-                        cout << "The user \"" << username << "\" is a not registered user" << endl;
+                        cout << "The user \"" << username << "\" is a not registered user" << endl << endl;
                         close(new_fd);
                         continue;
                     }
 
-                    users[n_users].username = username;
-                    
+                    users[n_users].username = username;                    
                     users[n_users].cloudStorage= path;
                     n_users++;
 

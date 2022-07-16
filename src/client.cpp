@@ -90,14 +90,16 @@ int main(int argc, char* const argv[]) {
 
     cout << "Start the AUTHENTICATION PHASE..." << endl << endl;
 
+    //mando lo username
     send_obj(sd, (unsigned char*)username, constants::DIM_USERNAME);
 
+    //ricevo <Ns | certs>
     int size_msg = receive_len(sd);
     unsigned char msg[size_msg];
 
     receive_obj(sd, msg, size_msg);
 
-    cout << "ricevuto certificato " << endl;
+    cout << "Received nonce and certificate from server" << endl;
 
 
     return 0;
