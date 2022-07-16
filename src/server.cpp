@@ -11,9 +11,11 @@
 #include "include/server.h"
 #include "include/constants.h"
 #include "util.cpp"
+#include <experimental/filesystem>
 #include <filesystem>
 
 using namespace std;
+namespace fs = std::experimental::filesystem;
 
 int main(int argc, char* const argv[]) {
     int ret, i;
@@ -99,9 +101,17 @@ int main(int argc, char* const argv[]) {
 
                     cout << "Connection with client: " << username << endl;
 
-                    string path= (string)constants::DIR_SERVER + (string)username;
-                    namespace fs = std::filesystem;
+                    const string path= "."+(string)constants::DIR_SERVER + (string)username;
+                    
+                    const auto processWorkingDir = fs::current_path();
+                    const auto existingDir = processWorkingDir / path;
 
+                    if(fs::is_directory(path))
+                        cout << "registered user" << endl;
+                    else{
+                        cout << "not registered user" << endl;
+                        close(new_fd);
+                    }
                 }
             }
         }
