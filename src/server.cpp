@@ -8,8 +8,8 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
-#include "include/server.h"
 #include "include/constants.h"
+#include "crypto.cpp"
 #include "util.cpp"
 #include <experimental/filesystem>
 #include <filesystem>
@@ -17,7 +17,18 @@
 using namespace std;
 namespace fs = std::experimental::filesystem;
 
+struct user{
+    string username;
+    string cloudStorage;
+
+    unsigned int count_client =0;
+    unsigned int count_server=0;
+};
+
 int main(int argc, char* const argv[]) {
+    struct user* users[constants::TOT_USERS];
+    unsigned int n_users=0;
+
     int ret, i;
 
     int port= constants:: SERVER_PORT;
@@ -118,9 +129,36 @@ int main(int argc, char* const argv[]) {
                         close(new_fd);
                     }
 
+                    users[n_users]->username = username;
+                    users[n_users]->cloudStorage = path;
+                    n_users++;
+
                     //genero N_s
+                    unsigned char nonce_s[constants::NONCE_SIZE];
+                    generateNonce(nonce_s);
 
                     //carico il certificato del server
+                    X509* cert_server;
+                    loadCertificate(cert_server, "server");
+                    //buffer che conterrà la serializzazione del certificato
+                    unsigned char* cert_buf = NULL;
+                    unsigned int size_cert = serializeCertificate(cert_server, cert_buf);
+
+                    sumControl(constants::NONCE_SIZE, size_cert);
+
+                    size_t msg_len= constants::NONCE_SIZE + size_cert;
+                    send_int(new_fd, msg_len);
+
+                    unsigned char msg[msg_len];
+                    memset(msg, 0, msg_len);
+                    concat2Elements(msg, nonce_s, cert_buf, constants::NONCE_SIZE, size_cert);
+                    send_obj(new_fd, msg, msg_len);
+
+                    cout << "Certificate and nonce send to the client" << endl;
+
+                    OPENSSL_free(cert_buf);
+	                X509_free(cert_server);
+
                 }
             }
         }

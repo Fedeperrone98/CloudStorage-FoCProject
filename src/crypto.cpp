@@ -3,13 +3,13 @@
 
 using namespace std;
 
-void CryptoOperation::handleErrors(void){
+void handleErrors(void){
 	ERR_print_errors_fp(stderr);
 	abort();
 }
 
 //function that generate a nonce of NONCE_SIZE
-void CryptoOperation::generateNonce(unsigned char* nonce){
+void generateNonce(unsigned char* nonce){
     if(RAND_poll() != 1){
         handleErrors();
     }
@@ -73,7 +73,7 @@ static DH *get_dh2048(void)
 }
 
 //function that allocates and generates Diffie-Hellman private key
-EVP_PKEY* CryptoOperation::generateDHParams(){
+EVP_PKEY* generateDHParams(){
     int ret;
     EVP_PKEY* DHparams;
     EVP_PKEY_CTX* DHctx;
@@ -116,7 +116,7 @@ EVP_PKEY* CryptoOperation::generateDHParams(){
 }
 
 //function that return user public key
-EVP_PKEY*  CryptoOperation::getUserPbkey(string username){
+EVP_PKEY*  getUserPbkey(string username){
     EVP_PKEY* pubkey;
 
     string path = constants::DIR_CLIENTS + username + "/" + username + constants::SUFFIX_PUBKEY;
@@ -138,7 +138,7 @@ EVP_PKEY*  CryptoOperation::getUserPbkey(string username){
 }
 
 //function that return user private key or the server private key
-EVP_PKEY* CryptoOperation::readPrivateKey(string username, string pwd, string who){
+EVP_PKEY* readPrivateKey(string username, string pwd, string who){
     EVP_PKEY* prvkey;
     string path;
 
@@ -168,7 +168,7 @@ EVP_PKEY* CryptoOperation::readPrivateKey(string username, string pwd, string wh
 //certificate
 
 //function that load the certificate of the server or of the CA
-void CryptoOperation::loadCertificate(X509*& cert, string who){
+void loadCertificate(X509*& cert, string who){
     string path;
 
     if(who=="server"){
@@ -193,7 +193,7 @@ void CryptoOperation::loadCertificate(X509*& cert, string who){
 }
 
 //function that load the crl of the CA
-void CryptoOperation::loadCRL(X509_CRL*& crl){
+void loadCRL(X509_CRL*& crl){
     string path= constants::NAME_CA_CRL;
 
     FILE* file = fopen(path.c_str(), "r");
@@ -212,7 +212,7 @@ void CryptoOperation::loadCRL(X509_CRL*& crl){
 }
 
 //function that verify the certificate and returns true if the certificate is verified
-bool CryptoOperation::verifyCertificate(X509* cert_to_verify){
+bool verifyCertificate(X509* cert_to_verify){
     int ret;
 
     X509_STORE_CTX* ctx = X509_STORE_CTX_new();
@@ -272,14 +272,14 @@ bool CryptoOperation::verifyCertificate(X509* cert_to_verify){
     return true;
 }
 
-void CryptoOperation::getPublicKeyFromCertificate(X509 *cert, EVP_PKEY *&pubkey){
+void getPublicKeyFromCertificate(X509 *cert, EVP_PKEY *&pubkey){
     pubkey = X509_get_pubkey(cert);
     if(!pubkey){
         handleErrors();
     }
 }
 
-unsigned int CryptoOperation::serializeCertificate(X509* cert, unsigned char* cert_buf){
+unsigned int serializeCertificate(X509* cert, unsigned char* cert_buf){
     int cert_size = i2d_X509(cert,&cert_buf);
     if(cert_size < 0) {
         handleErrors();
@@ -288,7 +288,7 @@ unsigned int CryptoOperation::serializeCertificate(X509* cert, unsigned char* ce
     return cert_size;
 }
 
-void CryptoOperation::deserializeCertificate(int cert_len,unsigned char* cert_buff, X509*& buff){
+void deserializeCertificate(int cert_len,unsigned char* cert_buff, X509*& buff){
 
     cout << "cert_len" << cert_len << endl;
     buff = d2i_X509(NULL,(const unsigned char**)&cert_buff,cert_len);
@@ -300,7 +300,7 @@ void CryptoOperation::deserializeCertificate(int cert_len,unsigned char* cert_bu
 //digital signature
 
 //function that return the signature for a given plaintext and in signatureLen its length
-void CryptoOperation::signatureFunction(unsigned char * plaintext, int dimpt, unsigned char* signature, int* signatureLen, EVP_PKEY* myPrivK){
+void signatureFunction(unsigned char * plaintext, int dimpt, unsigned char* signature, int* signatureLen, EVP_PKEY* myPrivK){
     int ret;
 
     EVP_MD_CTX* signCtx= EVP_MD_CTX_new();
@@ -329,7 +329,7 @@ void CryptoOperation::signatureFunction(unsigned char * plaintext, int dimpt, un
 }
 
 //function wthat verifies the signature
-bool CryptoOperation::verifySignature (unsigned char* signature,  unsigned char* unsigned_msg, int signature_size, int unsigned_size, EVP_PKEY* pubkey){
+bool verifySignature (unsigned char* signature,  unsigned char* unsigned_msg, int signature_size, int unsigned_size, EVP_PKEY* pubkey){
     int ret;
 
     EVP_MD_CTX* signCtx= EVP_MD_CTX_new();
