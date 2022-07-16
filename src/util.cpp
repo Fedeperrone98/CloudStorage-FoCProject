@@ -41,12 +41,7 @@ void send_obj (int sock, unsigned char* buf, size_t len){
 //Send the message via socket
 	uint32_t dim_obj = htonl(len);
 	ssize_t no_err;
-	//send the message length first
-	no_err = send (sock, &dim_obj, sizeof(uint32_t), 0);		
-	if(no_err == -1 || no_err < sizeof(uint32_t)){
-		perror("send lunghezza dell'oggetto");	
-		exit(-1);
-	}
+	
 	//send object
 	no_err = send(sock,(void*)buf,len, 0 );
 	if(no_err == -1){

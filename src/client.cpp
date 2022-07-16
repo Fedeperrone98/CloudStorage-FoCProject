@@ -10,6 +10,7 @@
 #include <netinet/in.h>
 #include "include/client.h"
 #include "include/constants.h"
+#include "util.cpp"
 
 using namespace std;
 
@@ -32,7 +33,7 @@ int main(int argc, char* const argv[]) {
     }
 
     cout << "Insert your username" << endl;
-    char* username;
+    char username[constants::DIM_USERNAME];
     memset(username, 0, constants::DIM_USERNAME);
     if(fgets(username, constants::DIM_USERNAME, stdin)){
         perror("Error during the reading from stdin\n");
@@ -61,7 +62,7 @@ int main(int argc, char* const argv[]) {
 
     cout << "Connection established" << endl;
 
-    
+    send_obj(sd, (unsigned char*)username, constants::DIM_USERNAME);
 
     return 0;
 }
