@@ -2,7 +2,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-//#include <string>
+#include <string>
 #include <iostream>
 #include <sys/types.h>
 #include <sys/time.h>
