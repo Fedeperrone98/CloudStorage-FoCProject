@@ -32,8 +32,17 @@ int main(int argc, char* const argv[]) {
     }
 
     cout << "Insert your username" << endl;
-    //.....
-
+    char* username;
+    memset(username, 0, constants::DIM_USERNAME);
+    if(fgets(username, constants::DIM_USERNAME, stdin)){
+        perror("Error during the reading from stdin\n");
+        exit(-1);
+    }
+    char * charPointer;
+    charPointer = strchr(username, '\n');
+	if(charPointer)
+		*charPointer = '\0';
+    
     int sd; //descrittore del socket
     sd= socket(AF_INET,SOCK_STREAM, 0);
 
@@ -51,6 +60,8 @@ int main(int argc, char* const argv[]) {
 	}
 
     cout << "Connection established" << endl;
+
+    
 
     return 0;
 }
