@@ -295,15 +295,6 @@ void getPublicKeyFromCertificate(X509 *cert, EVP_PKEY *&pubkey){
     }
 }
 
-unsigned int serializeCertificate(X509* cert, unsigned char* cert_buf){
-    int cert_size = i2d_X509(cert,&cert_buf);
-    if(cert_size < 0) {
-        handleErrors();
-    }
-
-    return cert_size;
-}
-
 void deserializeCertificate(int cert_len,unsigned char* cert_buff, X509*& buff){
 
     cout << "cert_len" << cert_len << endl;

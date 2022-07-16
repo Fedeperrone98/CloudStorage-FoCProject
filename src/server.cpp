@@ -2,7 +2,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include <string>
+//#include <string>
 #include <iostream>
 #include <sys/types.h>
 #include <sys/time.h>
@@ -19,8 +19,9 @@ using namespace std;
 namespace fs = std::experimental::filesystem;
 
 struct user{
-    char username[constants::DIM_USERNAME];
+    string username;
     //unsigned char* cloudStorage=NULL;
+    //string cloudStorage;
     string cloudStorage;
 
     unsigned int count_client =0;
@@ -28,7 +29,7 @@ struct user{
 };
 
 int main(int argc, char* const argv[]) {
-    struct user* users[constants::TOT_USERS];
+    struct user users[constants::TOT_USERS];
     unsigned int n_users=0;
 
     int ret, i;
@@ -119,7 +120,7 @@ int main(int argc, char* const argv[]) {
 
                     cout << "Connection with client: \"" << username << "\"" << endl;
 
-                    string path= "."+(string)constants::DIR_SERVER + (string)username;
+                    string path=(string)constants::DIR_SERVER + (string)username;
                     
                     const auto processWorkingDir = fs::current_path();
                     const auto existingDir = processWorkingDir / path;
@@ -129,60 +130,48 @@ int main(int argc, char* const argv[]) {
                     else{
                         cout << "The user \"" << username << "\" is a not registered user" << endl;
                         close(new_fd);
+                        continue;
                     }
 
-                    string s1;
-                    string s2 = "pippo";
-                    s1=s2;
-                    cout << s1 << endl;
-
-                    memset(users[n_users]->username, 0, constants::DIM_USERNAME);
-
-                    memcpy(users[n_users]->username, username, constants::DIM_USERNAME);
-                     cout << "ok1.1" <<endl;
-                    //users[n_users]->cloudStorage = path;
-                    //strncpy(users[n_users]->cloudStorage, path.c_str(), path.length());
-                    //users[n_users]->cloudStorage[path.length()]='\0';
-                    //memcpy(users[n_users]->cloudStorage, path.c_str(), path.length());
-                    //concatElements(users[n_users]->cloudStorage, (unsigned char*)path.c_str(), 0, path.length());
-                    cout << path << endl;
+                    users[n_users].username = username;
                     
-                    //users[n_users]->cloudStorage.assign(path);
-                    cout << "ok1.2" <<endl;
+                    users[n_users].cloudStorage= path;
                     n_users++;
 
-                    cout << "ok1" <<endl;
 
                     //genero N_s
                     unsigned char nonce_s[constants::NONCE_SIZE];
                     generateNonce(nonce_s);
-
-                    cout << "ok2" <<endl;
 
                     //carico il certificato del server
                     X509* cert_server;
                     loadCertificate(cert_server, "server");
                     //buffer che conterrà la serializzazione del certificato
                     unsigned char* cert_buf = NULL;
-                    unsigned int size_cert = serializeCertificate(cert_server, cert_buf);
+                    //serializzazione certificato
+                    unsigned int cert_size = i2d_X509(cert_server, &cert_buf);
 
-                    cout << "ok3" <<endl;
+                    if(cert_size < 0) {
+                        perror("certificate size error");
+                        exit(-1);
+                    }
 
-                    sumControl(constants::NONCE_SIZE, size_cert);
+                    sumControl(constants::NONCE_SIZE, cert_size);
 
-                    size_t msg_len= constants::NONCE_SIZE + size_cert;
+                    // mando la dimensione del messaggio <Ns | certs>
+                    size_t msg_len= constants::NONCE_SIZE + cert_size;
                     send_int(new_fd, msg_len);
 
+                    // mando il vero messaggio
                     unsigned char msg[msg_len];
                     memset(msg, 0, msg_len);
-                    concat2Elements(msg, nonce_s, cert_buf, constants::NONCE_SIZE, size_cert);
+                    concat2Elements(msg, nonce_s, cert_buf, constants::NONCE_SIZE, cert_size);
                     send_obj(new_fd, msg, msg_len);
 
                     cout << "Certificate and nonce send to the client" << endl;
 
                     OPENSSL_free(cert_buf);
 	                X509_free(cert_server);
-
                 }
             }
         }
