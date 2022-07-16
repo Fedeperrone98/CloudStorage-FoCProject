@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string>
 #include <iostream>
 #include <sys/types.h>
 #include <sys/time.h>
@@ -19,7 +20,8 @@ namespace fs = std::experimental::filesystem;
 
 struct user{
     char username[constants::DIM_USERNAME];
-    char* cloudStorage=NULL;
+    //unsigned char* cloudStorage=NULL;
+    string cloudStorage;
 
     unsigned int count_client =0;
     unsigned int count_server=0;
@@ -129,12 +131,23 @@ int main(int argc, char* const argv[]) {
                         close(new_fd);
                     }
 
+                    string s1;
+                    string s2 = "pippo";
+                    s1=s2;
+                    cout << s1 << endl;
+
+                    memset(users[n_users]->username, 0, constants::DIM_USERNAME);
+
                     memcpy(users[n_users]->username, username, constants::DIM_USERNAME);
                      cout << "ok1.1" <<endl;
                     //users[n_users]->cloudStorage = path;
                     //strncpy(users[n_users]->cloudStorage, path.c_str(), path.length());
                     //users[n_users]->cloudStorage[path.length()]='\0';
-                    memcpy(users[n_users]->cloudStorage, path.c_str(), path.length());
+                    //memcpy(users[n_users]->cloudStorage, path.c_str(), path.length());
+                    //concatElements(users[n_users]->cloudStorage, (unsigned char*)path.c_str(), 0, path.length());
+                    cout << path << endl;
+                    
+                    //users[n_users]->cloudStorage.assign(path);
                     cout << "ok1.2" <<endl;
                     n_users++;
 
