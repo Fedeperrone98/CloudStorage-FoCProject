@@ -8,7 +8,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
-#include "include/client.h"
+//#include "include/client.h"
 #include "include/constants.h"
 #include<openssl/evp.h>
 #include<openssl/pem.h>

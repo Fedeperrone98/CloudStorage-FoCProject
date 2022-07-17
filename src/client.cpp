@@ -10,6 +10,7 @@
 #include <netinet/in.h>
 #include "include/constants.h"
 #include "util.cpp"
+#include "crypto.cpp"
 
 using namespace std;
 
@@ -97,9 +98,99 @@ int main(int argc, char* const argv[]) {
     unsigned char msg[size_msg];
 
     receive_obj(sd, msg, size_msg);
-
     cout << "Received nonce and certificate from server" << endl;
 
+    //array che ospiteranno il nonce e il certificato
+    unsigned char nonce_s[constants::NONCE_SIZE];
+    int dimOpBuffer = size_msg - constants::NONCE_SIZE;
+    unsigned char *serialized_cert;
+    X509*cert_s;
+	serialized_cert = (unsigned char*) malloc((dimOpBuffer));
+	if(!serialized_cert){
+		perror("malloc");
+		exit(-1);
+	}
+	
+    extract_data_from_array(nonce_s, msg, 0, constants::NONCE_SIZE);
+    if(nonce_s == NULL){
+		perror("Error during the extraction of the nonce of the server\n");
+		exit(-1);
+	}
+    // serialized_cert conterrà il certificato del server serializzato
+    extract_data_from_array(serialized_cert, msg, constants::NONCE_SIZE, size_msg);	
+	if(serialized_cert == NULL){
+		perror("Error during the extraction of the certificate of the server\n");
+		exit(-1);
+	}
 
+    cout << "nonce e certificato estratti" << endl;
+
+    unsigned char *pointer;
+    pointer = serialized_cert;
+	cert_s = d2i_X509(NULL, (const unsigned char**)&charPointer, dimOpBuffer);
+
+    cout << "deserilizzazione fatta" << endl;
+    
+    // verifica del certificato
+    //carico il certificato della CA
+    FILE* ca_cert_file = fopen("../data/clients/FoundationsOfCybersecurity_cert.pem", "r");
+    if(!ca_cert_file){ 
+        cerr << "Error: cannot open file"; 
+        exit(1); 
+    }
+    X509 * ca_cert= PEM_read_X509(ca_cert_file, NULL, NULL, NULL);
+
+    //carico la certificate revocation list
+    FILE* ca_crl_file = fopen("../data/clients/FoundationsOfCybersecurity_crl.pem", "r");
+    if(!ca_crl_file){ 
+        cerr << "Error: cannot open file"; 
+        exit(1); 
+    }
+    X509_CRL * ca_crl= PEM_read_X509_CRL(ca_crl_file, NULL, NULL, NULL);
+
+    cout << "certificati estratti" << endl;
+    
+    X509_STORE *store_cert= X509_STORE_new(); //alloca uno store vuoto e ritorna
+    ret= X509_STORE_add_cert(store_cert, ca_cert); //aggiunge un certificato fidato allo store
+    if(ret!=1){
+        cerr << "Error: cannot add certificate to the store"; 
+        exit(1);
+    }
+
+    X509_STORE *store_crl= X509_STORE_new();
+    ret= X509_STORE_add_crl(store_crl, ca_crl);
+    if(ret!=1){
+        cerr << "Error: cannot add crl to the store"; 
+        exit(1);
+    }
+
+    cout << "inizio verifica" << endl;
+
+    // contesto per la verifica del certificato
+    X509_STORE_CTX *ctx= X509_STORE_CTX_new();
+    ret=X509_STORE_CTX_init(ctx, store_cert, cert_s, NULL);
+    if(ret!=1){
+        cerr << "Error: cannot inizialize the certificate-validation context"; 
+        exit(1);
+    }
+
+    //varifica certificato
+    ret= X509_verify_cert(ctx);
+    if(ret<=0){
+        cerr << "Error: certificate of server not valid"; 
+        exit(1);
+    }else{
+        cout << "server certificate valid";
+    }
+
+    X509_STORE_CTX_free(ctx);
+
+    X509_NAME *server_name = X509_get_subject_name(cert_s);
+    X509_NAME *ca_name=X509_get_subject_name(ca_cert);
+
+    EVP_PKEY * pubkey_s= X509_get_pubkey(cert_s);
+
+    cout << "tutto ok" << endl;
+    
     return 0;
 }

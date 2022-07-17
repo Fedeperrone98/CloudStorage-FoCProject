@@ -128,3 +128,23 @@ bool control_white_list(string str){
 	}
 	return true;
 }
+
+//return a portion of the src array
+//l'array ritornato è una porzione di src che va da src[start] a src[end - 1]
+void extract_data_from_array(unsigned char* dest, unsigned char* src, int start, int end){
+	int i,j;
+	if(start < 0 || end < 0 || start > end || src == NULL || dest == NULL){
+		perror("wrong parameters");
+		dest = NULL;
+		return;
+	}
+	j = 0;
+	if (end < INT_MIN + start){
+		perror("integer overflow");
+		dest = NULL;
+		return;
+	}	
+	memset(dest, 0, end-start);
+	memcpy(dest, src+start, end-start);
+}
+
