@@ -363,3 +363,24 @@ bool verifySignature (unsigned char* signature,  unsigned char* unsigned_msg, in
     EVP_MD_CTX_free(signCtx);
     return true;
 }
+
+bool verifyCertificate(X509_STORE* certStore, X509* certificate)
+{
+    X509_STORE_CTX* storeCtx = X509_STORE_CTX_new();
+	if(storeCtx == NULL){
+		perror("Error during the creation of the context for certificate verification\n");
+		exit(-1);
+	}
+	int ret = X509_STORE_CTX_init(storeCtx, certStore, certificate, NULL);
+	if(ret != 1){
+		perror("Error during the initilization of the certificate-verification context");
+		exit(-1);
+	}
+	ret = X509_verify_cert(storeCtx);
+	if(ret != 1){
+		perror("The certificate of the server can not be verified\n");
+		exit(-1);
+	}
+	X509_STORE_CTX_free(storeCtx);
+	return true;
+}

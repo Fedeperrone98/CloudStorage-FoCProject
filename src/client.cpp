@@ -129,6 +129,8 @@ int main(int argc, char* const argv[]) {
     pointer = serialized_cert;
 	cert_s = d2i_X509(NULL, (const unsigned char**)&charPointer, dimOpBuffer);
 
+    //ora che ho il certificato la serializzazione è inutile
+	free(serialized_cert);
     cout << "deserilizzazione fatta" << endl;
     
     // verifica del certificato
@@ -139,6 +141,7 @@ int main(int argc, char* const argv[]) {
         exit(1); 
     }
     X509 * ca_cert= PEM_read_X509(ca_cert_file, NULL, NULL, NULL);
+    fclose(ca_cert_file);
 
     //carico la certificate revocation list
     FILE* ca_crl_file = fopen("../data/clients/FoundationsOfCybersecurity_crl.pem", "r");
@@ -147,10 +150,15 @@ int main(int argc, char* const argv[]) {
         exit(1); 
     }
     X509_CRL * ca_crl= PEM_read_X509_CRL(ca_crl_file, NULL, NULL, NULL);
+    fclose(ca_crl_file);
 
     cout << "certificati estratti" << endl;
     
     X509_STORE *store_cert= X509_STORE_new(); //alloca uno store vuoto e ritorna
+    if(store_cert == NULL){
+		perror("Error during the creation of the store\n");
+		exit(-1);
+	}
     ret= X509_STORE_add_cert(store_cert, ca_cert); //aggiunge un certificato fidato allo store
     if(ret!=1){
         cerr << "Error: cannot add certificate to the store"; 
@@ -166,6 +174,8 @@ int main(int argc, char* const argv[]) {
 
     cout << "inizio verifica" << endl;
 
+    rett=verifyCertificate(store_cert, cert_s);
+/*
     // contesto per la verifica del certificato
     X509_STORE_CTX *ctx= X509_STORE_CTX_new();
     ret=X509_STORE_CTX_init(ctx, store_cert, cert_s, NULL);
@@ -189,8 +199,10 @@ int main(int argc, char* const argv[]) {
     X509_NAME *ca_name=X509_get_subject_name(ca_cert);
 
     EVP_PKEY * pubkey_s= X509_get_pubkey(cert_s);
+*/
 
-    cout << "tutto ok" << endl;
-    
+    if(ret==true)
+        cout << "tutto ok" << endl;
+
     return 0;
 }
