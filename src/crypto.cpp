@@ -8,7 +8,6 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
-//#include "include/client.h"
 #include "include/constants.h"
 #include<openssl/evp.h>
 #include<openssl/pem.h>
@@ -16,6 +15,7 @@
 #include<openssl/x509.h>
 #include<openssl/bio.h>
 #include<openssl/err.h>
+#include "util.cpp"
 
 using namespace std;
 
@@ -243,6 +243,7 @@ bool verifyCertificate(X509* cert_to_verify){
     loadCertificate(ca_cert, "ca");
     loadCRL(crl);
 
+
     store= X509_STORE_new();
     if(!store){
         handleErrors();
@@ -291,15 +292,6 @@ bool verifyCertificate(X509* cert_to_verify){
 void getPublicKeyFromCertificate(X509 *cert, EVP_PKEY *&pubkey){
     pubkey = X509_get_pubkey(cert);
     if(!pubkey){
-        handleErrors();
-    }
-}
-
-void deserializeCertificate(int cert_len,unsigned char* cert_buff, X509*& buff){
-
-    cout << "cert_len" << cert_len << endl;
-    buff = d2i_X509(NULL,(const unsigned char**)&cert_buff,cert_len);
-    if(!buff) {
         handleErrors();
     }
 }
@@ -364,23 +356,199 @@ bool verifySignature (unsigned char* signature,  unsigned char* unsigned_msg, in
     return true;
 }
 
-bool verifyCertificate(X509_STORE* certStore, X509* certificate)
-{
-    X509_STORE_CTX* storeCtx = X509_STORE_CTX_new();
-	if(storeCtx == NULL){
-		perror("Error during the creation of the context for certificate verification\n");
+unsigned char* serializePublicKey(EVP_PKEY* privK, int* bufferLen){
+	BIO* myBio;
+	int ret;
+	unsigned char* buffer;
+	myBio = BIO_new(BIO_s_mem());
+	if(myBio == NULL)
+		return NULL;
+	ret = PEM_write_bio_PUBKEY(myBio, privK);
+	if(ret != 1)
+		return NULL;
+	buffer = NULL;
+	*bufferLen = BIO_get_mem_data(myBio, &buffer);
+	buffer = (unsigned char*) malloc(*bufferLen);
+	if(!buffer){
+		perror("malloc");
 		exit(-1);
 	}
-	int ret = X509_STORE_CTX_init(storeCtx, certStore, certificate, NULL);
-	if(ret != 1){
-		perror("Error during the initilization of the certificate-verification context");
+	ret = BIO_read(myBio, (void*) buffer, *bufferLen);
+	if(ret <= 0)
+		return NULL;
+	BIO_free(myBio);
+	return buffer;
+}
+
+//Function that allocates and returns the deserialized public key. It returns NULL in case of error
+EVP_PKEY* deserializePublicKey(unsigned char* buffer, int bufferLen){
+	EVP_PKEY* pubKey;
+	int ret;
+	BIO* myBio;
+	myBio = BIO_new(BIO_s_mem());
+	if(myBio == NULL)
+		return NULL;
+	ret = BIO_write(myBio, buffer, bufferLen);
+	if(ret <= 0)
+		return NULL;
+	pubKey = PEM_read_bio_PUBKEY(myBio, NULL, NULL, NULL);
+	if(pubKey == NULL)
+		return NULL;
+	BIO_free(myBio);
+	return pubKey;
+}
+
+//Function that takes a plaintext and allocates and returns a message formatted like 
+    //{ <encrypted_key> | <IV> | <ciphertext> } 
+    //in an asimmetric encryption and store its length in dimM. Exit in case of error
+unsigned char* from_pt_to_DigEnv(unsigned char* pt, int pt_len, EVP_PKEY* pubkey, int* dimM){
+	int ret;
+	int dimB = 0;
+	unsigned char* encrypted_key;
+	unsigned char* iv;
+	unsigned char* ciphertext;
+	int encrypted_key_len, iv_len, cpt_len;
+	unsigned char* buffer = NULL;
+	unsigned char* message = NULL;
+	int nc = 0;		//bytes encrypted at each chunk
+	int nctot = 0;	//total encrypted bytes
+
+	const EVP_CIPHER* cipher = EVP_aes_128_cbc();
+	encrypted_key_len = EVP_PKEY_size(pubkey);
+	iv_len = EVP_CIPHER_iv_length(cipher);
+	encrypted_key = (unsigned char*) malloc(encrypted_key_len);
+	iv = (unsigned char*) malloc(iv_len);
+
+	sumControl(pt_len, EVP_CIPHER_block_size(cipher)); //sommo dimensione di un blocco per padding
+	ciphertext = (unsigned char*) malloc(pt_len + EVP_CIPHER_block_size(cipher));
+
+	if(!iv || !encrypted_key || !ciphertext)
+	{
+        perror("Error during malloc()");
+		exit(-1);
+    }
+
+    //inizializzo contesto
+	EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+	if(ctx == NULL)
+		handleErrors();
+
+	ret = EVP_SealInit(ctx, cipher, &encrypted_key, &encrypted_key_len, iv, &pubkey, 1);
+	if(ret < 0)
+		handleErrors();
+
+	ret = EVP_SealUpdate(ctx, ciphertext, &nc, pt, pt_len);
+	if(ret == 0)
+		handleErrors();
+
+	sumControl(nctot, nc);
+	nctot += nc;
+
+	ret = EVP_SealFinal(ctx, ciphertext + nctot, &nc);
+	if(ret == 0)
+		handleErrors();
+
+	sumControl(nctot, nc);
+	nctot += nc;
+	cpt_len = nctot;
+
+	EVP_CIPHER_CTX_free(ctx);
+#pragma optimize("", off)
+   	memset(pt, 0, pt_len);
+#pragma optimize("", on)
+   	free(pt);
+
+	//message constitution
+	sumControl(encrypted_key_len, iv_len);
+	dimB = encrypted_key_len + iv_len;
+	buffer = (unsigned char*) malloc(dimB);
+	if(!buffer){
+		perror("malloc");
 		exit(-1);
 	}
-	ret = X509_verify_cert(storeCtx);
-	if(ret != 1){
-		perror("The certificate of the server can not be verified\n");
+	concat2Elements(buffer, encrypted_key, iv, encrypted_key_len, iv_len);
+	sumControl(dimB, cpt_len);
+	*dimM = dimB + cpt_len;
+	message = (unsigned char*) malloc(*dimM);
+	if(!message){
+		perror("malloc");
 		exit(-1);
 	}
-	X509_STORE_CTX_free(storeCtx);
-	return true;
+	concat2Elements(message, buffer, ciphertext, dimB, cpt_len);
+	free(iv);
+	free(encrypted_key);
+	free(ciphertext);
+   	return message;
+}
+
+//takes the received message (formatted { <encrypted_key> | <IV> | <ciphertext> }) 
+    //and allocates and returns the respective plaintext and stores its length in pt_len. 
+    //Exit in case of error
+unsigned char* from_DigEnv_to_PlainText(unsigned char* message, int messageLen, int* pt_len, EVP_PKEY* prvKey){
+	int ret;
+	unsigned char* pt = NULL;
+	unsigned char* encrypted_key;
+	unsigned char* iv;
+	unsigned char* cpt;
+	int encrypted_key_len, iv_len, cpt_len;
+	int nd = 0; 	// bytes decrypted at each chunk
+   	int ndtot = 0; 	// total decrypted bytes
+	EVP_CIPHER_CTX* ctx;
+
+	const EVP_CIPHER* cipher = EVP_aes_128_cbc(); 
+	encrypted_key_len = EVP_PKEY_size(prvKey);
+	iv_len = EVP_CIPHER_iv_length(cipher);
+	sumControl(encrypted_key_len, iv_len);
+
+	//check for correct format of the encrypted file
+	if(messageLen < encrypted_key_len + iv_len)
+	{
+        perror("Error: invalid message");
+        exit(-1);
+    }
+
+	encrypted_key = (unsigned char*) malloc(encrypted_key_len);
+	iv = (unsigned char*) malloc(iv_len);
+	cpt_len = messageLen - encrypted_key_len - iv_len;	//possible overflow already controlled
+	cpt = (unsigned char*) malloc(cpt_len);
+	pt = (unsigned char*) malloc(cpt_len);
+	if(!iv || !encrypted_key || !cpt || !pt)
+	{
+        perror("Error during malloc()");
+        exit(-1);
+    }
+
+    //estraggo dal messaggio ogni singola parte
+	extract_data_from_array(encrypted_key, message, 0, encrypted_key_len);
+	extract_data_from_array(iv, message, encrypted_key_len, encrypted_key_len + iv_len);
+	extract_data_from_array(cpt, message, encrypted_key_len + iv_len, messageLen);
+	
+    //decryption
+	ctx = EVP_CIPHER_CTX_new();
+	if(ctx == NULL)
+		handleErrors();
+
+	ret = EVP_OpenInit(ctx, cipher, encrypted_key, encrypted_key_len, iv, prvKey);
+	if(ret == 0)
+		handleErrors();
+
+	ret = EVP_OpenUpdate(ctx, pt, &nd, cpt, cpt_len);
+	if(ret == 0)
+		handleErrors();
+	sumControl(ndtot, nd);
+	ndtot += nd;
+
+	ret = EVP_OpenFinal(ctx, pt + ndtot, &nd);
+	if(ret == 0)
+		handleErrors();
+	sumControl(ndtot, nd);
+	ndtot += nd;
+	*pt_len = ndtot;
+
+	EVP_CIPHER_CTX_free(ctx);
+	free(encrypted_key);
+	free(iv);
+	free(cpt);
+
+	return pt;	
 }

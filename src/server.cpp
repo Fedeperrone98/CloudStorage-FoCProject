@@ -11,7 +11,7 @@
 #include <netinet/in.h>
 #include "include/constants.h"
 #include "crypto.cpp"
-#include "util.cpp"
+//#include "util.cpp"
 #include <experimental/filesystem>
 #include <filesystem>
 
@@ -33,13 +33,40 @@ int main(int argc, char* const argv[]) {
     unsigned int n_users=0;
 
     int ret, i;
+    bool rett;
 
     int port= constants:: SERVER_PORT;
+    unsigned char *msg_to_send;
+    int msg_send_len;
+
+    unsigned char *msg_to_receive;
+    int msg_receive_len;
+
+    unsigned char *plaintext;
+    int pt_len;
+
+    char* charPointer;
 
     //uso il meccanismo dell'IO multiplexing per gestire richieste provenienti dai client
     fd_set master; //set di descrittori da monitorare
 	fd_set reads_fds; //set di descrittori pronti
 	int fdmax; //numero massimo di descrittori
+
+    // chiedo la password
+    char password[constants::DIM_PASSWORD];
+    cout << "Please, insert your password:" << endl;
+    memset(password, 0, constants::DIM_PASSWORD);
+    if(!fgets(password, constants::DIM_PASSWORD, stdin)){
+        perror("Error during the reading from stdin\n");
+        exit(-1);
+    }
+    charPointer = strchr(password, '\n');
+    if(charPointer)
+        *charPointer = '\0';
+
+    //estraggo chiave privata
+    EVP_PKEY * prvKey_s=readPrivateKey("server", password, "server");
+
 
     //azzero i set dei descrittori
 	FD_ZERO(&master);
@@ -171,6 +198,74 @@ int main(int argc, char* const argv[]) {
 
                     OPENSSL_free(cert_buf);
 	                X509_free(cert_server);
+
+                    //aspetto di ricevere la lunghezza del prossimo messaggio
+                    msg_receive_len=receive_len(new_fd);
+
+                    //aspetto di ricevere la lunghezza della firma
+                    int signature_len=receive_len(new_fd);
+
+                    //aspetto l'intero messaggio
+                    msg_to_receive=(unsigned char*)malloc(msg_receive_len);
+                    if(!msg_to_receive){
+                        perror("Error during malloc()");
+                        exit(-1);
+                    }
+                    receive_obj(new_fd, msg_to_receive, msg_receive_len);
+
+                    //decifro il messaggio
+                    plaintext=from_DigEnv_to_PlainText(msg_to_receive, msg_receive_len, &pt_len, prvKey_s);
+
+                    //estraggo le singole parti dal plaintext <Nc | Yc | sign>
+                    unsigned char nonce_c[constants::NONCE_SIZE];
+                    extract_data_from_array(nonce_c, plaintext, 0, constants::NONCE_SIZE);
+                    if(nonce_c == NULL){
+                        perror("Error during the extraction of the client nonce\n");
+                        exit(-1);
+                    }
+
+                    subControl(msg_receive_len, constants::NONCE_SIZE);
+                    subControl(msg_receive_len-constants::NONCE_SIZE, signature_len);
+                    int DH_c_len=msg_receive_len-constants::NONCE_SIZE-signature_len;
+                    unsigned char serialized_DH_c[DH_c_len];
+                    extract_data_from_array(serialized_DH_c, plaintext, constants::NONCE_SIZE, DH_c_len);
+                    if(serialized_DH_c == NULL){
+                        perror("Error during the extraction of the client DH key\n");
+                        exit(-1);
+                    }
+
+                    EVP_PKEY *DH_c=deserializePublicKey(serialized_DH_c,  DH_c_len);
+
+                    unsigned char signature[signature_len];
+                    extract_data_from_array(signature, plaintext, msg_receive_len-signature_len, msg_receive_len);
+                    if(signature == NULL){
+                        perror("Error during the extraction of the signature\n");
+                        exit(-1);
+                    }
+
+                    //carico chiave pubblica del client
+                    EVP_PKEY *pubKey_c=getUserPbkey(username);
+
+                    //costruisco messaggio su cui controllare la firma
+                    unsigned char *buffer=(unsigned char*)malloc(constants::NONCE_SIZE+constants::NONCE_SIZE+DH_c_len);
+                    if(buffer == NULL){
+                        perror("Error during malloc()\n");
+                        exit(-1);
+                    }
+
+                    memcpy(buffer, nonce_c, constants::NONCE_SIZE);
+                    concatElements(buffer, nonce_s, constants::NONCE_SIZE, constants::NONCE_SIZE);
+                    concatElements(buffer, serialized_DH_c, constants::NONCE_SIZE + constants::NONCE_SIZE, DH_c_len);
+
+                    //verifico firma
+                    rett=verifySignature(signature, buffer, signature_len, constants::NONCE_SIZE+constants::NONCE_SIZE+DH_c_len, pubKey_c);
+                    if(!rett)
+                    {
+                        perror("Error during signature verification\n");
+                        close(new_fd);
+                    }
+
+                    cout << "authenticated client" << endl;
                 }
             }
         }

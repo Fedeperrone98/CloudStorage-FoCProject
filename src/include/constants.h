@@ -9,6 +9,8 @@ namespace constants
     constexpr unsigned int DIM_USERNAME = 30;
     constexpr unsigned int TOT_USERS = 4;
 
+    constexpr unsigned int DIM_PASSWORD = 30;
+
     constexpr unsigned int NONCE_SIZE = 16;
     constexpr unsigned int TAG_LEN = 16;
     constexpr unsigned int IV_LEN = 12;

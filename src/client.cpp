@@ -9,15 +9,22 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include "include/constants.h"
-#include "util.cpp"
+//#include "util.cpp"
 #include "crypto.cpp"
 
 using namespace std;
 
 int main(int argc, char* const argv[]) {
     int ret;
-
+    bool rett;
     int port;
+    unsigned char *plaintext;
+    unsigned char *chiphertext;
+    char * charPointer;
+    unsigned char *msg_to_send;
+    unsigned char *msg_to_receive;
+    int msg_send_len;
+    int msg_receive_len;
 
     //controllo gli argomenti passati al client
     if(argc<=1 || argc >2){
@@ -32,7 +39,6 @@ int main(int argc, char* const argv[]) {
             scanf("%d", &port);;
     }
 
-    bool rett;
     char username[constants::DIM_USERNAME];
 
     cout << "Please, insert your username:" << endl;
@@ -41,7 +47,6 @@ int main(int argc, char* const argv[]) {
         perror("Error during the reading from stdin\n");
         exit(-1);
     }
-    char * charPointer;
     charPointer = strchr(username, '\n');
     if(charPointer)
         *charPointer = '\0';
@@ -57,7 +62,6 @@ int main(int argc, char* const argv[]) {
             perror("Error during the reading from stdin\n");
             exit(-1);
         }
-        char * charPointer;
         charPointer = strchr(username, '\n');
         if(charPointer)
             *charPointer = '\0';
@@ -65,6 +69,21 @@ int main(int argc, char* const argv[]) {
         //controllo che lo username non contenga caratteri speciali
         rett = control_white_list(username);
     }
+
+    // chiedo la password
+    char password[constants::DIM_PASSWORD];
+    cout << "Please, insert your password:" << endl;
+    memset(password, 0, constants::DIM_PASSWORD);
+    if(!fgets(password, constants::DIM_PASSWORD, stdin)){
+        perror("Error during the reading from stdin\n");
+        exit(-1);
+    }
+    charPointer = strchr(password, '\n');
+    if(charPointer)
+        *charPointer = '\0';
+
+    //estraggo chiave privata
+    EVP_PKEY * prvKey_c=readPrivateKey(username, password, "client");
 
     int sd; //descrittore del socket
     sd= socket(AF_INET,SOCK_STREAM, 0);
@@ -95,114 +114,129 @@ int main(int argc, char* const argv[]) {
 
     //ricevo <Ns | certs>
     int size_msg = receive_len(sd);
-    unsigned char msg[size_msg];
+    msg_to_receive=(unsigned char*)malloc(size_msg);
+    if(!msg_to_receive){
+		perror("malloc");
+		exit(-1);
+	}
+    //unsigned char msg[size_msg];
 
-    receive_obj(sd, msg, size_msg);
+    receive_obj(sd, msg_to_receive, size_msg);
     cout << "Received nonce and certificate from server" << endl;
 
     //array che ospiteranno il nonce e il certificato
     unsigned char nonce_s[constants::NONCE_SIZE];
-    int dimOpBuffer = size_msg - constants::NONCE_SIZE;
+    int dim_cert_msg = size_msg - constants::NONCE_SIZE;
     unsigned char *serialized_cert;
     X509*cert_s;
-	serialized_cert = (unsigned char*) malloc((dimOpBuffer));
+	serialized_cert = (unsigned char*) malloc((dim_cert_msg));
 	if(!serialized_cert){
 		perror("malloc");
 		exit(-1);
 	}
 	
-    extract_data_from_array(nonce_s, msg, 0, constants::NONCE_SIZE);
+    extract_data_from_array(nonce_s, msg_to_receive, 0, constants::NONCE_SIZE);
     if(nonce_s == NULL){
 		perror("Error during the extraction of the nonce of the server\n");
 		exit(-1);
 	}
     // serialized_cert conterrà il certificato del server serializzato
-    extract_data_from_array(serialized_cert, msg, constants::NONCE_SIZE, size_msg);	
+    extract_data_from_array(serialized_cert, msg_to_receive, constants::NONCE_SIZE, size_msg);	
 	if(serialized_cert == NULL){
 		perror("Error during the extraction of the certificate of the server\n");
 		exit(-1);
 	}
 
-    cout << "nonce e certificato estratti" << endl;
-
     unsigned char *pointer;
     pointer = serialized_cert;
-	cert_s = d2i_X509(NULL, (const unsigned char**)&charPointer, dimOpBuffer);
+	cert_s = d2i_X509(NULL, (const unsigned char**)&pointer, dim_cert_msg);
+    if(!cert_s)
+    {
+        perror("Error during the deserialization of the server certificate \n");
+		exit(-1);
+    }
 
     //ora che ho il certificato la serializzazione è inutile
 	free(serialized_cert);
-    cout << "deserilizzazione fatta" << endl;
-    
-    // verifica del certificato
-    //carico il certificato della CA
-    FILE* ca_cert_file = fopen("../data/clients/FoundationsOfCybersecurity_cert.pem", "r");
-    if(!ca_cert_file){ 
-        cerr << "Error: cannot open file"; 
-        exit(1); 
-    }
-    X509 * ca_cert= PEM_read_X509(ca_cert_file, NULL, NULL, NULL);
-    fclose(ca_cert_file);
 
-    //carico la certificate revocation list
-    FILE* ca_crl_file = fopen("../data/clients/FoundationsOfCybersecurity_crl.pem", "r");
-    if(!ca_crl_file){ 
-        cerr << "Error: cannot open file"; 
-        exit(1); 
+    rett=verifyCertificate(cert_s);
+    if(!rett)
+    {
+        perror("server certificate not valid \n");
+		exit(-1);
     }
-    X509_CRL * ca_crl= PEM_read_X509_CRL(ca_crl_file, NULL, NULL, NULL);
-    fclose(ca_crl_file);
 
-    cout << "certificati estratti" << endl;
-    
-    X509_STORE *store_cert= X509_STORE_new(); //alloca uno store vuoto e ritorna
-    if(store_cert == NULL){
-		perror("Error during the creation of the store\n");
+    //estraggo la chiave pibblica dal certificato del server
+    EVP_PKEY* pubKey_s;
+    getPublicKeyFromCertificate(cert_s, pubKey_s);
+
+    //genero chiave privata di DH
+    EVP_PKEY *DH_prvKey_c=generateDHParams();
+    unsigned char* serialized_DH_prvKey_c;
+
+    //rendo la chiave serializzzata per poterla trasmettere
+    int len_serialized_prvKey_c=0;
+    serialized_DH_prvKey_c=serializePublicKey(DH_prvKey_c, &len_serialized_prvKey_c);
+    if(serialized_DH_prvKey_c == NULL){
+		perror("Error during serialization of the DH public key\n");
 		exit(-1);
 	}
-    ret= X509_STORE_add_cert(store_cert, ca_cert); //aggiunge un certificato fidato allo store
-    if(ret!=1){
-        cerr << "Error: cannot add certificate to the store"; 
-        exit(1);
-    }
 
-    X509_STORE *store_crl= X509_STORE_new();
-    ret= X509_STORE_add_crl(store_crl, ca_crl);
-    if(ret!=1){
-        cerr << "Error: cannot add crl to the store"; 
-        exit(1);
-    }
+    //genero nonce del clint
+    unsigned char nonce_c[constants::NONCE_SIZE];
+    generateNonce(nonce_c);
 
-    cout << "inizio verifica" << endl;
+    sumControl(constants::NONCE_SIZE, constants::NONCE_SIZE);
+	sumControl(constants::NONCE_SIZE + constants::NONCE_SIZE, len_serialized_prvKey_c);
+    int pt_len = constants::NONCE_SIZE + constants::NONCE_SIZE + len_serialized_prvKey_c;
 
-    rett=verifyCertificate(store_cert, cert_s);
-/*
-    // contesto per la verifica del certificato
-    X509_STORE_CTX *ctx= X509_STORE_CTX_new();
-    ret=X509_STORE_CTX_init(ctx, store_cert, cert_s, NULL);
-    if(ret!=1){
-        cerr << "Error: cannot inizialize the certificate-validation context"; 
-        exit(1);
-    }
+    //alloco spazio per il plaintext
+    plaintext=(unsigned char*)malloc(pt_len);
+    if(!plaintext){
+		perror("Error during malloc()");
+		exit(-1);
+	}
 
-    //varifica certificato
-    ret= X509_verify_cert(ctx);
-    if(ret<=0){
-        cerr << "Error: certificate of server not valid"; 
-        exit(1);
-    }else{
-        cout << "server certificate valid";
-    }
+    //creo playntext <Nc | Ns | Yc>
+    memcpy(plaintext, nonce_c, constants::NONCE_SIZE);
+	concatElements(plaintext, nonce_s, constants::NONCE_SIZE, constants::NONCE_SIZE);
+	concatElements(plaintext, serialized_DH_prvKey_c, constants::NONCE_SIZE + constants::NONCE_SIZE, len_serialized_prvKey_c);
 
-    X509_STORE_CTX_free(ctx);
+    //calcolo firma sul plaintext
+    unsigned char *signature=(unsigned char*)malloc(EVP_PKEY_size(prvKey_c));
+    if(signature == NULL){
+		perror("Error during malloc()");
+		exit(-1);
+	}
+    int signature_len; //conterrà la lunghezza effettiva della firma
+    signatureFunction(plaintext, pt_len, signature, &signature_len, prvKey_c);
 
-    X509_NAME *server_name = X509_get_subject_name(cert_s);
-    X509_NAME *ca_name=X509_get_subject_name(ca_cert);
+    sumControl(constants::NONCE_SIZE, len_serialized_prvKey_c);
+    sumControl(constants::NONCE_SIZE + len_serialized_prvKey_c, signature_len);
 
-    EVP_PKEY * pubkey_s= X509_get_pubkey(cert_s);
-*/
+    free(plaintext);
+    pt_len=constants::NONCE_SIZE + len_serialized_prvKey_c + signature_len;
+    plaintext=(unsigned char*) malloc(pt_len);
+    if(!plaintext){
+		perror("Error during malloc()");
+		exit(-1);
+	}
 
-    if(ret==true)
-        cout << "tutto ok" << endl;
+    //creo playntext <Nc | Yc | sign>
+    memcpy(plaintext, nonce_c, constants::NONCE_SIZE);
+    concatElements(plaintext, serialized_DH_prvKey_c, constants::NONCE_SIZE, len_serialized_prvKey_c);
+    concatElements(plaintext, signature, constants::NONCE_SIZE + len_serialized_prvKey_c, signature_len);
 
+    msg_to_send=from_pt_to_DigEnv(plaintext, pt_len, pubKey_s, &msg_send_len);
+
+    //invio lunghezza messaggio
+    send_int(sd, msg_send_len);
+
+    //invio lunghezza firma
+    send_int(sd, signature_len);
+
+    //invio messaggio
+    send_obj(sd, msg_to_send, msg_send_len);
+    
     return 0;
 }
