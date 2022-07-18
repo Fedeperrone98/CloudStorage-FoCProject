@@ -11,7 +11,6 @@
 #include <netinet/in.h>
 #include "include/constants.h"
 #include "crypto.cpp"
-//#include "util.cpp"
 #include <experimental/filesystem>
 #include <filesystem>
 

@@ -9,7 +9,6 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include "include/constants.h"
-//#include "util.cpp"
 #include "crypto.cpp"
 
 using namespace std;
