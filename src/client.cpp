@@ -29,19 +29,21 @@ int main(int argc, char* const argv[]) {
     //controllo gli argomenti passati al client
     if(argc<=1 || argc >2){
         cout << "Error: insert the client port number\n";
-        scanf("%d", &port);
+        cin >> port;
+        while('\n'!=getchar());
     }else{ 
         port= atoi(argv[1]); //converto il numero di porta in intero 
     }
     
     while( port<1024 || port>65536){
             cout << "Error: insert a valid port number\n";
-            scanf("%d", &port);;
+            cin >> port;
+            while('\n'!=getchar());
     }
 
     char username[constants::DIM_USERNAME];
 
-    cout << "Please, insert your username:" << endl;
+    cout << endl << "Please, insert your username:" << endl;
     memset(username, 0, constants::DIM_USERNAME);
     if(!fgets(username, constants::DIM_USERNAME, stdin)){
         perror("Error during the reading from stdin\n");
@@ -109,8 +111,12 @@ int main(int argc, char* const argv[]) {
 
     cout << "Start the AUTHENTICATION PHASE..." << endl << endl;
 
+    //**************** invio primo messaggio *****************
+
     //mando lo username
     send_obj(sd, (unsigned char*)username, constants::DIM_USERNAME);
+
+    //**************** ricezione secondo messaggio *****************
 
     //ricevo <Ns | certs>
     int size_msg = receive_len(sd);
@@ -119,7 +125,6 @@ int main(int argc, char* const argv[]) {
 		perror("malloc");
 		exit(-1);
 	}
-    //unsigned char msg[size_msg];
 
     receive_obj(sd, msg_to_receive, size_msg);
     cout << "Received nonce and certificate from server" << endl;
@@ -321,7 +326,7 @@ int main(int argc, char* const argv[]) {
         exit(-1);
     }
 
-    cout << "Session key generation: success" << endl;
+    cout << "Session key generation: success" << endl << endl;
 
     EVP_PKEY_free(DH_s);
     EVP_PKEY_free(DH_prvKey_c);
@@ -333,5 +338,69 @@ int main(int argc, char* const argv[]) {
     free(serialized_DH_s);
     free(signature);
     free(plaintext);
+
+    while(1){
+        cout << "*********************MENU*****************" << endl;
+        cout << "1) Upload" << endl;
+        cout << "2) Download" << endl;
+        cout << "3) Delete" << endl;
+        cout << "4) List" << endl;
+        cout << "5) Rename" << endl;
+        cout << "6) Logout" << endl;
+        cout << "******************************************" << endl;
+        cout << "Insert the chosen code operation" << endl;
+
+        int operation;
+        cin >> operation;
+
+        switch (operation)
+        {
+        case 1:
+            //******************************************************************************
+            //          UPLOAD
+            //******************************************************************************
+            break;
+
+        case 2:
+            //******************************************************************************
+            //          DOWNLOAD
+            //******************************************************************************
+            
+            break;
+        
+        case 3:
+            //******************************************************************************
+            //          DELETE
+            //******************************************************************************
+            
+            break;
+
+        case 4:
+            //******************************************************************************
+            //          LIST
+            //******************************************************************************
+            
+            break;
+
+        case 5:
+            //******************************************************************************
+            //          RENAME
+            //******************************************************************************
+            
+            break;
+        
+        case 6:
+            //******************************************************************************
+            //          LOGOUT
+            //******************************************************************************
+            
+            break;
+        
+        default:
+            cout << "Insert a valid code operation" << endl;
+            break;
+        }
+    }
+
     return 0;
 }

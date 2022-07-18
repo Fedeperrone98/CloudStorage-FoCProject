@@ -60,6 +60,7 @@ int main(int argc, char* const argv[]) {
         perror("Error during the reading from stdin\n");
         exit(-1);
     }
+    cout << endl;
     charPointer = strchr(password, '\n');
     if(charPointer)
         *charPointer = '\0';
@@ -99,7 +100,7 @@ int main(int argc, char* const argv[]) {
         exit(-1);
     }
 
-    cout << "Server is listening..." << endl;
+    cout << "Server is listening..." << endl << endl;
 
     //aggiungo il socket di ascolto al set di descrittori 
     FD_SET(listener, &master);
@@ -139,8 +140,10 @@ int main(int argc, char* const argv[]) {
                     //*************************************************************************************************************
                     //              FASE DI AUTENTICAZIONE
                     //*************************************************************************************************************
-                    cout << "Received a connection request" << endl;
+                    cout << "Received a connection request" << endl << endl;
                     cout << "Start the AUTHENTICATION PHASE..." << endl << endl;
+
+                    //**************** ricezione primo messaggio *****************
 
                     char username[constants::DIM_USERNAME];
                     receive_obj(new_fd, (unsigned char*)username, constants::DIM_USERNAME);
@@ -164,6 +167,7 @@ int main(int argc, char* const argv[]) {
                     users[n_users].cloudStorage= path;
                     n_users++;
 
+                    //**************** invio secondo messaggio *****************
 
                     //genero N_s
                     unsigned char nonce_s[constants::NONCE_SIZE];
@@ -369,6 +373,10 @@ int main(int argc, char* const argv[]) {
                     free(msg_to_send);
                     free(signature);
                     free(serialized_DH_prvKey_s);
+
+                    while(1){
+
+                    }
 
                     close(new_fd);
                 }
