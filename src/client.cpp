@@ -166,6 +166,8 @@ int main(int argc, char* const argv[]) {
 		exit(-1);
     }
 
+    //********** invio terzo messaggio **********
+
     //estraggo la chiave pibblica dal certificato del server
     EVP_PKEY* pubKey_s;
     getPublicKeyFromCertificate(cert_s, pubKey_s);
@@ -182,7 +184,7 @@ int main(int argc, char* const argv[]) {
 		exit(-1);
 	}
 
-    //genero nonce del clint
+    //genero nonce del client
     unsigned char nonce_c[constants::NONCE_SIZE];
     generateNonce(nonce_c);
 
@@ -190,14 +192,13 @@ int main(int argc, char* const argv[]) {
 	sumControl(constants::NONCE_SIZE + constants::NONCE_SIZE, len_serialized_prvKey_c);
     int pt_len = constants::NONCE_SIZE + constants::NONCE_SIZE + len_serialized_prvKey_c;
 
-    //alloco spazio per il plaintext
     plaintext=(unsigned char*)malloc(pt_len);
     if(!plaintext){
 		perror("Error during malloc()");
 		exit(-1);
 	}
 
-    //creo playntext <Nc | Ns | Yc>
+    //creo plaintext <Nc | Ns | Yc>
     memcpy(plaintext, nonce_c, constants::NONCE_SIZE);
 	concatElements(plaintext, nonce_s, constants::NONCE_SIZE, constants::NONCE_SIZE);
 	concatElements(plaintext, serialized_DH_prvKey_c, constants::NONCE_SIZE + constants::NONCE_SIZE, len_serialized_prvKey_c);
@@ -237,6 +238,100 @@ int main(int argc, char* const argv[]) {
 
     //invio messaggio
     send_obj(sd, msg_to_send, msg_send_len);
-    
+
+    cout << "send message: <EncKey | IV | Nc | Yc | sign>" << endl;
+
+    free(msg_to_receive);
+    free(msg_to_send);
+    free(serialized_DH_prvKey_c);
+    free(signature);
+
+    //************** ricezione quarto messaggio *****************
+
+    //aspetto di ricevere la lunghezza del prossimo messaggio
+    msg_receive_len=receive_len(sd);
+
+    //aspetto di ricevere la lunghezza della firma
+    signature_len=receive_len(sd);
+
+    //aspetto l'intero messaggio
+    msg_to_receive=(unsigned char*)malloc(msg_receive_len);
+    if(!msg_to_receive){
+        perror("Error during malloc()");
+        exit(-1);
+    }
+    receive_obj(sd, msg_to_receive, msg_receive_len);
+
+    //decifro il messaggio
+    plaintext=from_DigEnv_to_PlainText(msg_to_receive, msg_receive_len, &pt_len, prvKey_c);
+
+    //estraggo le singole parti dal plaintext <Yc | sign>
+    subControl(pt_len, signature_len);
+    int DH_s_len=pt_len-signature_len;
+    unsigned char* serialized_DH_s=(unsigned char*)malloc(DH_s_len);
+    if(serialized_DH_s == NULL){
+        perror("Error during malloc()\n");
+        exit(-1);
+    }
+    extract_data_from_array(serialized_DH_s, plaintext, 0, pt_len-signature_len);
+    if(serialized_DH_s == NULL){
+        perror("Error during the extraction of the server DH key\n");
+        exit(-1);
+    }
+
+    EVP_PKEY *DH_s=deserializePublicKey(serialized_DH_s,  DH_s_len);
+
+    signature=(unsigned char*)malloc(signature_len);
+    if(signature == NULL){
+        perror("Error during malloc()\n");
+        exit(-1);
+    }
+
+    extract_data_from_array(signature, plaintext, pt_len-signature_len, pt_len);
+    if(signature == NULL){
+        perror("Error during the extraction of the signature\n");
+        exit(-1);
+    }
+
+    //costruisco messaggio su cui controllare la firma
+    unsigned char *buffer=(unsigned char*)malloc(constants::NONCE_SIZE+constants::NONCE_SIZE+DH_s_len);
+    if(buffer == NULL){
+        perror("Error during malloc()\n");
+        exit(-1);
+    }
+
+    memcpy(buffer, nonce_c, constants::NONCE_SIZE);
+    concatElements(buffer, nonce_s, constants::NONCE_SIZE, constants::NONCE_SIZE);
+    concatElements(buffer, serialized_DH_s, constants::NONCE_SIZE + constants::NONCE_SIZE, DH_s_len);
+
+    rett=verifySignature(signature, buffer, signature_len, constants::NONCE_SIZE+constants::NONCE_SIZE+DH_s_len, pubKey_s);
+    if(!rett)
+    {
+        perror("Error during signature verification\n");
+        exit(-1);
+    }
+
+    cout << "authenticated server" << endl;
+
+    //********* termine invio messaggi per autenticazione ************
+    // derivo chiave di sessione
+    unsigned char* session_key=symmetricKeyDerivation_for_aes_128_gcm(DH_prvKey_c, DH_s);
+    if(session_key==NULL){
+        perror("Error during session key generation\n");
+        exit(-1);
+    }
+
+    cout << "Session key generation: success" << endl;
+
+    EVP_PKEY_free(DH_s);
+    EVP_PKEY_free(DH_prvKey_c);
+    EVP_PKEY_free(prvKey_c);
+    EVP_PKEY_free(pubKey_s);
+
+    free(buffer);
+    free(msg_to_receive);
+    free(serialized_DH_s);
+    free(signature);
+    free(plaintext);
     return 0;
 }

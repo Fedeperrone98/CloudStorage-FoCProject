@@ -552,3 +552,82 @@ unsigned char* from_DigEnv_to_PlainText(unsigned char* message, int messageLen, 
 
 	return pt;	
 }
+
+//Function that allocates and derive a symmetric key for aes_128_gcm by means of the DH shared secret, 
+    //derived by using the two keys. It returns NULL in case of error
+unsigned char* symmetricKeyDerivation_for_aes_128_gcm(EVP_PKEY* privK, EVP_PKEY* pubK){
+	unsigned char* secret;
+	int secretLen;
+	unsigned char* digest;
+	int digestLen;
+	unsigned char* key;
+	int keyLen;
+	EVP_MD_CTX* Hctx;
+	EVP_PKEY_CTX* derive_ctx;
+	int ret;
+
+	const EVP_CIPHER* cipher = EVP_aes_128_gcm();;
+	//secret derivation
+	derive_ctx = EVP_PKEY_CTX_new(privK, NULL);
+	if(derive_ctx == NULL)
+		handleErrors();
+
+	ret = EVP_PKEY_derive_init(derive_ctx);
+	if(ret <= 0)
+		handleErrors();
+
+	ret = EVP_PKEY_derive_set_peer(derive_ctx, pubK);
+	if(ret <= 0)
+		handleErrors();
+
+	EVP_PKEY_derive(derive_ctx, NULL, (size_t*)&secretLen);
+	secret = (unsigned char*) malloc(secretLen);
+	if(secret == NULL){
+        perror("Error during malloc()\n");
+        exit(-1);
+    }
+
+	EVP_PKEY_derive(derive_ctx, secret, (size_t*)&secretLen);
+	EVP_PKEY_CTX_free(derive_ctx);
+
+	//key derivation by hashing the shared secret
+	Hctx = EVP_MD_CTX_new();
+	digest = (unsigned char*) malloc(EVP_MD_size(EVP_sha256()));
+	if(!digest){
+		perror("malloc");
+		exit(-1);
+	}
+
+	ret = EVP_DigestInit(Hctx, EVP_sha256());
+	if(ret != 1)
+		handleErrors();
+
+	ret = EVP_DigestUpdate(Hctx, secret, secretLen);
+	if(ret != 1)
+		handleErrors();
+
+	ret = EVP_DigestFinal(Hctx, digest, (unsigned int*)&digestLen);
+	if(ret != 1)
+		handleErrors();
+
+	EVP_MD_CTX_free(Hctx);
+
+    // il digest sta su 256bit ma utilizzeremo solo i primi 128
+	keyLen = EVP_CIPHER_key_length(cipher);
+	key = (unsigned char*) malloc(keyLen);
+	if(!key){
+		perror("malloc");
+		exit(-1);
+	}
+
+	memcpy(key, digest, keyLen);
+
+#pragma optimize("", off);
+	memset(digest, 0, digestLen);
+	memset(secret, 0, secretLen);
+#pragma optimize("", on);
+	free(secret);
+	free(digest);
+
+	return key;
+}
