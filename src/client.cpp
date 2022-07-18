@@ -73,7 +73,7 @@ int main(int argc, char* const argv[]) {
 
     // chiedo la password
     char password[constants::DIM_PASSWORD];
-    cout << "Please, insert your password:" << endl;
+    cout << endl << "Please, insert your password:" << endl;
     memset(password, 0, constants::DIM_PASSWORD);
     if(!fgets(password, constants::DIM_PASSWORD, stdin)){
         perror("Error during the reading from stdin\n");
@@ -102,18 +102,19 @@ int main(int argc, char* const argv[]) {
 		exit(-1);	
 	}
 
-    cout << "Connection established" << endl;
+    cout << endl << "Connection established" << endl;
 
     //*************************************************************************************************************
     //              FASE DI AUTENTICAZIONE
     //*************************************************************************************************************
 
-    cout << "Start the AUTHENTICATION PHASE..." << endl << endl;
+    cout << endl <<"Start the AUTHENTICATION PHASE..." << endl << endl;
 
     //**************** invio primo messaggio *****************
 
     //mando lo username
     send_obj(sd, (unsigned char*)username, constants::DIM_USERNAME);
+    cout << "Send the username to the server" << endl;
 
     //**************** ricezione secondo messaggio *****************
 
@@ -243,7 +244,7 @@ int main(int argc, char* const argv[]) {
     //invio messaggio
     send_obj(sd, msg_to_send, msg_send_len);
 
-    cout << "send message: <EncKey | IV | Nc | Yc | sign>" << endl;
+    cout << "Sended message: <EncKey | IV | Nc | Yc | sign>" << endl;
 
     free(msg_to_receive);
     free(msg_to_send);
@@ -266,10 +267,12 @@ int main(int argc, char* const argv[]) {
     }
     receive_obj(sd, msg_to_receive, msg_receive_len);
 
+    cout << "Received message: <EncKey | IV | Ys | sign>" << endl;
+
     //decifro il messaggio
     plaintext=from_DigEnv_to_PlainText(msg_to_receive, msg_receive_len, &pt_len, prvKey_c);
 
-    //estraggo le singole parti dal plaintext <Yc | sign>
+    //estraggo le singole parti dal plaintext <Ys | sign>
     subControl(pt_len, signature_len);
     int DH_s_len=pt_len-signature_len;
     unsigned char* serialized_DH_s=(unsigned char*)malloc(DH_s_len);
@@ -315,9 +318,10 @@ int main(int argc, char* const argv[]) {
         exit(-1);
     }
 
-    cout << "authenticated server" << endl;
+    cout << "Authenticated server" << endl;
 
     //********* termine invio messaggi per autenticazione ************
+    
     // derivo chiave di sessione
     unsigned char* session_key=symmetricKeyDerivation_for_aes_128_gcm(DH_prvKey_c, DH_s);
     if(session_key==NULL){
@@ -338,6 +342,12 @@ int main(int argc, char* const argv[]) {
     free(signature);
     free(plaintext);
 
+    cout << "Finish AUTHENTCATION PHASE" << endl << endl;
+
+    cout << "Start SESSION..." << endl << endl;
+
+    int count_s=0;
+    int count_c=0;
     while(1){
         cout << "*********************MENU*****************" << endl;
         cout << "1) Upload" << endl;
@@ -393,10 +403,21 @@ int main(int argc, char* const argv[]) {
             //          LOGOUT
             //******************************************************************************
             
+            //messaggio di richiesta: <IV | AAD | tag | Logout_request>
+            msg_to_send = symmetricEncryption((unsigned char*)constants::Logout_request, constants::TYPE_CODE_SIZE, session_key, &msg_send_len, &count_c);
+            
+            //mando la dimesione del messaggio
+            send_int(sd, msg_send_len);
+
+            //mando il messaggio
+            send_obj(sd, msg_to_send, msg_send_len);
+
+            cout << endl << "Sended message <IV | AAD | tag | Logout_request_type>" << endl;
+            
             break;
         
         default:
-            cout << "Insert a valid code operation" << endl;
+            cout << endl << "Insert a valid code operation" << endl;
             break;
         }
     }

@@ -53,7 +53,7 @@ int main(int argc, char* const argv[]) {
 
     // chiedo la password
     char password[constants::DIM_PASSWORD];
-    cout << "Please, insert your password:" << endl;
+    cout << endl <<"Please, insert your password:" << endl;
     memset(password, 0, constants::DIM_PASSWORD);
     if(!fgets(password, constants::DIM_PASSWORD, stdin)){
         perror("Error during the reading from stdin\n");
@@ -197,7 +197,7 @@ int main(int argc, char* const argv[]) {
                     concat2Elements(msg, nonce_s, cert_buf, constants::NONCE_SIZE, cert_size);
                     send_obj(new_fd, msg, msg_len);
 
-                    cout << "Certificate and nonce send to the client" << endl;
+                    cout << "Sended Certificate and nonce to the client" << endl;
 
                     OPENSSL_free(cert_buf);
 	                X509_free(cert_server);
@@ -217,6 +217,8 @@ int main(int argc, char* const argv[]) {
                         exit(-1);
                     }
                     receive_obj(new_fd, msg_to_receive, msg_receive_len);
+
+                    cout << "Received message: <EncKey | IV | Nc | Yc | sign>" << endl;
 
                     //decifro il messaggio
                     plaintext=from_DigEnv_to_PlainText(msg_to_receive, msg_receive_len, &pt_len, prvKey_s);
@@ -279,7 +281,7 @@ int main(int argc, char* const argv[]) {
                         continue;
                     }
 
-                    cout << "authenticated client" << endl;
+                    cout << "Authenticated client" << endl;
 
                     free(buffer);
                     free(msg_to_receive);
@@ -351,7 +353,7 @@ int main(int argc, char* const argv[]) {
                     //invio messaggio
                     send_obj(new_fd, msg_to_send, msg_send_len);
 
-                    cout << "send message: <EncKey | IV | Ys | sign>" << endl;
+                    cout << "Send message: <EncKey | IV | Ys | sign>" << endl;
 
                     //********* termine invio messaggi per autenticazione ************
 
@@ -373,7 +375,23 @@ int main(int argc, char* const argv[]) {
                     free(signature);
                     free(serialized_DH_prvKey_s);
 
+                    cout << endl << "Finish AUTHENTCATION PHASE" << endl << endl;
+
+                    cout << "Start SESSION..." << endl << endl;
+
                     while(1){
+                        //ricevo un messaggio di sessione
+
+                        //estraggo il type
+                        /*switch (expression)
+                        {
+                        case  :
+                            
+                            break;
+                        
+                        default:
+                            break;
+                        }*/
 
                     }
 

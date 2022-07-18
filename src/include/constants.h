@@ -34,6 +34,7 @@ namespace constants
     constexpr unsigned int DIM_NAME_CA_CRL = 49;
 
     //TYPE CODE
+    constexpr unsigned int TYPE_CODE_SIZE= 1;
     constexpr const char Update_request = 0x01;
     constexpr const char Acknowledgment = 0x02;
     constexpr const char Not_acknowledgment = 0x03;
