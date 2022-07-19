@@ -379,19 +379,77 @@ int main(int argc, char* const argv[]) {
 
                     cout << "Start SESSION..." << endl << endl;
 
+                    int count_s=0;
+                    int count_c=0;
+
                     while(1){
-                        //ricevo un messaggio di sessione
+                        //ricevo la dimensione del messaggio di sessione
+                        msg_receive_len = receive_len(new_fd);
+
+                        //ricevo il messaggio di sessione
+                        receive_obj(new_fd, msg_to_receive, msg_receive_len);
+
+                        //decifro il messaggio ricevuto
+                        plaintext = symmetricDecription(msg_to_receive, msg_receive_len, &pt_len, session_key, &count_c);
+
+                        //non è detto che plaintext contenga solo type
 
                         //estraggo il type
-                        /*switch (expression)
+                        switch (plaintext)
                         {
-                        case  :
+                        case (unsigned char *)constants::Upload_request :
+                            //******************************************************************************
+                            //          UPLOAD
+                            //******************************************************************************
+                            
+                            
+                            break;
+
+                        case (unsigned char *)constants::Download_request :
+                            //******************************************************************************
+                            //          DOWNLOAD
+                            //******************************************************************************
+                            
+                            
+                            break;
+                        
+                        case (unsigned char *)constants::Delete_request :
+                            //******************************************************************************
+                            //          DELETE
+                            //******************************************************************************
+                            
+                            
+                            break;
+
+                        case (unsigned char *)constants::List_request :
+                            //******************************************************************************
+                            //          LIST
+                            //******************************************************************************
+                            
+                            
+                            break;
+
+                        case (unsigned char *)constants::Rename_request :
+                            //******************************************************************************
+                            //          RENAME
+                            //******************************************************************************
+                            
+                            
+                            break;
+
+                        case (unsigned char *)constants::Logout_request :
+                            //******************************************************************************
+                            //          LOGOUT
+                            //******************************************************************************
+                            
+                            //mando il messaggio di ack
+                            msg_to_send = symmetricEncryption((unsigned char*)constants::Acknowledgment, constants::TYPE_CODE_SIZE, session_key, &msg_send_len, &count_s);
                             
                             break;
                         
                         default:
                             break;
-                        }*/
+                        }
 
                     }
 

@@ -35,7 +35,7 @@ namespace constants
 
     //TYPE CODE
     constexpr unsigned int TYPE_CODE_SIZE= 1;
-    constexpr const char Update_request = 0x01;
+    constexpr const char Upload_request = 0x01;
     constexpr const char Acknowledgment = 0x02;
     constexpr const char Not_acknowledgment = 0x03;
     constexpr const char File_content = 0x04;

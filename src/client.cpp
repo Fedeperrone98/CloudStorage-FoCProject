@@ -414,6 +414,11 @@ int main(int argc, char* const argv[]) {
 
             cout << endl << "Sended message <IV | AAD | tag | Logout_request_type>" << endl;
             
+            cout << endl << "End SESSION" << endl;
+
+            close(sd);
+            return 0;
+            
             break;
         
         default:
