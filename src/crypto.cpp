@@ -632,6 +632,7 @@ unsigned char* symmetricKeyDerivation_for_aes_128_gcm(EVP_PKEY* privK, EVP_PKEY*
 	return key;
 }
 
+/*
 //function that takes a plaintext and returns a buffer that has the format <IV | AAD | tag | ciphertext>
 // Exit in case of error
 unsigned char* symmetricEncryption(unsigned char *plaintext, int plaintext_len, unsigned char *key, int *totalLen, int* counter)
@@ -644,12 +645,10 @@ unsigned char* symmetricEncryption(unsigned char *plaintext, int plaintext_len, 
 	unsigned char* outBuffer;
     const EVP_CIPHER* cipher = EVP_aes_128_gcm();
 
-    cout << "plaintext:" << plaintext << endl;
-
 	unsigned char* tag = (unsigned char*) malloc(16);
 
 	sumControl(plaintext_len, EVP_CIPHER_block_size(cipher));
-	unsigned char* ciphertext = (unsigned char*) malloc(plaintext_len + /*EVP_CIPHER_block_size(cipher)*/ 16);
+	unsigned char* ciphertext = (unsigned char*) malloc(plaintext_len + /*EVP_CIPHER_block_size(cipher) 16);
 
 	unsigned char* iv = (unsigned char*) malloc(constants::IV_LEN);
 
@@ -693,7 +692,7 @@ unsigned char* symmetricEncryption(unsigned char *plaintext, int plaintext_len, 
         outlen_tot+=len;
         if(plaintext_len - outlen_tot < EVP_CIPHER_block_size(cipher))
             break;
-    }*/
+    }
 
     cout << "ok2" << endl;
         
@@ -732,8 +731,75 @@ unsigned char* symmetricEncryption(unsigned char *plaintext, int plaintext_len, 
 	free(AAD);
 
 	return outBuffer;
+}*/
+
+unsigned char* symmetricEncryption(unsigned char *plaintext, int plaintext_len, unsigned char *key, int *totalLen, int* counter)
+{
+    EVP_CIPHER_CTX *ctx;
+    int len = 0;
+	int ret = 0;
+    int ciphertext_len = 0;
+	unsigned char* outBuffer;
+	unsigned char* tag = (unsigned char*) malloc(constants::TAG_LEN);
+	sumControl(plaintext_len, constants::TAG_LEN);
+	unsigned char* ciphertext = (unsigned char*) malloc(plaintext_len + constants::TAG_LEN);
+	unsigned char* iv = (unsigned char*) malloc(constants::IV_LEN);
+	unsigned char* AAD = (unsigned char*) malloc(constants::AAD_LEN);
+	if(!tag | !ciphertext | !iv | !AAD){
+		perror("malloc");
+		exit(-1);
+	}
+	sprintf((char*)AAD, "%d", *counter);
+	IncControl(*counter);
+	(*counter)++;
+	ret = RAND_bytes(&iv[0], constants::IV_LEN);
+	if (ret!=1)
+		return NULL;
+	ctx = EVP_CIPHER_CTX_new();
+    if(!ctx)
+        return NULL;
+	ret = EVP_EncryptInit(ctx, EVP_aes_128_gcm(), key, iv);
+    if(1 != ret)
+        return NULL;
+	ret = EVP_EncryptUpdate(ctx, NULL, &len, AAD, constants::AAD_LEN);
+    if(1 != ret)
+        return NULL;
+	ret = EVP_EncryptUpdate(ctx, ciphertext, &len, plaintext, plaintext_len);
+    if(1 != ret)
+        return NULL;
+    ciphertext_len = len;
+	ret = EVP_EncryptFinal(ctx, ciphertext + len, &len);
+    if(1 != ret)
+        return NULL;
+	sumControl(ciphertext_len, len);
+    ciphertext_len += len;
+	ret = EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, 16, tag);
+    if(1 != ret)
+        return NULL;
+    EVP_CIPHER_CTX_free(ctx);
+	sumControl(ciphertext_len, constants::TAG_LEN);
+	sumControl(ciphertext_len+constants::TAG_LEN, constants::IV_LEN);
+	sumControl(ciphertext_len+constants::TAG_LEN+constants::IV_LEN, constants::AAD_LEN);
+    *totalLen = ciphertext_len + constants::TAG_LEN + constants::IV_LEN + constants::AAD_LEN;
+	outBuffer = (unsigned char*) malloc(*totalLen);
+	if(!outBuffer){
+		perror("malloc");
+		exit(-1);
+	}
+	concatElements(outBuffer, iv, 0, constants::IV_LEN);
+	concatElements(outBuffer, AAD, constants::IV_LEN, constants::AAD_LEN);
+	sumControl(constants::AAD_LEN, constants::IV_LEN);
+	concatElements(outBuffer, tag, constants::AAD_LEN + constants::IV_LEN, constants::TAG_LEN);
+	sumControl(constants::AAD_LEN+ constants::IV_LEN, constants::TAG_LEN);
+	concatElements(outBuffer, ciphertext, constants::AAD_LEN + constants::IV_LEN + constants::TAG_LEN, ciphertext_len);
+	free(ciphertext);
+	free(iv);
+	free(tag);
+	free(AAD);
+	return outBuffer;
 }
 
+/*
 //function that takes a buffer formatted as <IV | AAD | tag | ciphertext> and 
 //return the plaintext. exit in case of error
 unsigned char* symmetricDecription(unsigned char *recv_buffer, int bufferLen, int *plaintext_len, unsigned char* key, int* expectedAAD)
@@ -751,6 +817,7 @@ unsigned char* symmetricDecription(unsigned char *recv_buffer, int bufferLen, in
 	int ciphertext_len = bufferLen - constants::IV_LEN - constants::AAD_LEN - constants::TAG_LEN;
 	unsigned char* plaintext;
 	unsigned char* buffer = (unsigned char*) malloc(ciphertext_len);
+    //unsigned char* buffer = (unsigned char*) malloc(1);
 
 	//extract informations
 	ciphertext = (unsigned char*) malloc(ciphertext_len);
@@ -761,6 +828,8 @@ unsigned char* symmetricDecription(unsigned char *recv_buffer, int bufferLen, in
 		perror("Error during malloc()");
 		exit(-1);
 	}
+
+    cout << " ok1" << endl;
 
     //<IV | AAD | tag | ciphertext>
 
@@ -773,6 +842,7 @@ unsigned char* symmetricDecription(unsigned char *recv_buffer, int bufferLen, in
 	extract_data_from_array(tag, recv_buffer, constants::IV_LEN + constants::AAD_LEN, constants::IV_LEN + constants::AAD_LEN + constants::TAG_LEN);
 	extract_data_from_array(ciphertext, recv_buffer, constants::IV_LEN + constants::AAD_LEN + constants::TAG_LEN, bufferLen);
 	
+    cout << " ok2" << endl;
     intAAD = atoi((const char*)aad);
 	if(intAAD != *expectedAAD){
 		perror("The two counters are different");
@@ -780,6 +850,7 @@ unsigned char* symmetricDecription(unsigned char *recv_buffer, int bufferLen, in
 	}
 	IncControl(*expectedAAD);
 	(*expectedAAD)++;
+    cout << " ok3" << endl;
 
     if(!(ctx = EVP_CIPHER_CTX_new()))
         handleErrors();
@@ -791,8 +862,13 @@ unsigned char* symmetricDecription(unsigned char *recv_buffer, int bufferLen, in
     ret= EVP_DecryptUpdate(ctx, NULL, &len, aad, constants::AAD_LEN);
     if(ret!=1)
         handleErrors();
-
-    while(1){
+    cout << " ok4" << endl;
+    ret=EVP_DecryptUpdate(ctx, buffer, &len, ciphertext, ciphertext_len);
+    if(ret!=1)
+        handleErrors();
+    outlen_tot=len;
+    cout << " ok5" << endl;
+    /*while(1){
         ret=EVP_DecryptUpdate(ctx, buffer+outlen_tot, &len, ciphertext+outlen_tot, EVP_CIPHER_block_size(cipher));
         if(ret!=1)
             handleErrors();
@@ -800,18 +876,19 @@ unsigned char* symmetricDecription(unsigned char *recv_buffer, int bufferLen, in
         if(ciphertext_len - outlen_tot < EVP_CIPHER_block_size(cipher))
             break;
     }
-
     *plaintext_len = outlen_tot;
+     cout << " ok5.1" << endl;
     ret=EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, constants::TAG_LEN, tag);
     if(ret!=1)
         handleErrors();
-
-    ret = EVP_DecryptFinal(ctx, buffer + outlen_tot, &len);
+     cout << " ok5.2" << endl;
+    ret = EVP_DecryptFinal(ctx, buffer + len, &len);
     if(ret!=1)
         handleErrors();
-
+     cout << " ok5.3" << endl;
 	EVP_CIPHER_CTX_free(ctx);
 
+    cout << " ok6" << endl;
 	sumControl(*plaintext_len, len);
 	*plaintext_len += len;
 	plaintext = (unsigned char*) malloc((*plaintext_len));
@@ -820,12 +897,83 @@ unsigned char* symmetricDecription(unsigned char *recv_buffer, int bufferLen, in
 		exit(-1);
 	}
 	memcpy(plaintext, buffer, *plaintext_len);
-
+    cout << " ok7" << endl;
 	free(tag);
 	free(iv);
 	free(aad);
 	free(buffer);
 	free(ciphertext);
+    cout << " fine decription" << endl;
+	return plaintext;
+}*/
 
+unsigned char* symmetricDecription(unsigned char *recv_buffer, int bufferLen, int *plaintext_len, unsigned char* key, int* expectedAAD)
+{
+    EVP_CIPHER_CTX *ctx;
+    int len;
+    int ret;
+	unsigned char* iv;
+	unsigned char* aad;
+	int intAAD;
+	unsigned char* tag;
+	unsigned char* ciphertext;
+	int ciphertext_len = bufferLen - constants::IV_LEN- constants::AAD_LEN - constants::TAG_LEN;
+	unsigned char* plaintext;
+	unsigned char* buffer = (unsigned char*) malloc(ciphertext_len);
+	//extract informations
+	ciphertext = (unsigned char*) malloc(ciphertext_len);
+	iv = (unsigned char*) malloc(constants::IV_LEN);
+	aad = (unsigned char*) malloc(constants::AAD_LEN);
+	tag = (unsigned char*) malloc(constants::TAG_LEN);
+	if(!aad | !iv | !tag | !ciphertext){
+		perror("Error during malloc()");
+		exit(-1);
+	}
+	extract_data_from_array(iv, recv_buffer, 0, constants::IV_LEN);
+	sumControl(constants::AAD_LEN, constants::IV_LEN);
+	sumControl(constants::IV_LEN+constants::AAD_LEN, constants::TAG_LEN);
+	extract_data_from_array(aad, recv_buffer, constants::IV_LEN, constants::IV_LEN + constants::AAD_LEN);
+	extract_data_from_array(tag, recv_buffer, constants::IV_LEN + constants::AAD_LEN, constants::IV_LEN + constants::AAD_LEN + constants::TAG_LEN);
+	extract_data_from_array(ciphertext, recv_buffer, constants::IV_LEN + constants::AAD_LEN + constants::TAG_LEN, bufferLen);
+	intAAD = atoi((const char*)aad);
+	if(intAAD != *expectedAAD){
+		perror("The two counters are different");
+		exit(-1);
+	}
+	IncControl(*expectedAAD);
+	(*expectedAAD)++;
+
+    if(!(ctx = EVP_CIPHER_CTX_new()))
+        return NULL;
+    if(!EVP_DecryptInit(ctx, EVP_aes_128_gcm(), key, iv))
+        return NULL;
+    if(!EVP_DecryptUpdate(ctx, NULL, &len, aad, constants::AAD_LEN))
+        return NULL;
+    if(!EVP_DecryptUpdate(ctx, buffer, &len, ciphertext, ciphertext_len))
+        return NULL;
+    *plaintext_len = len;
+    if(!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, 16, tag))
+        return NULL;
+    ret = EVP_DecryptFinal(ctx, buffer + len, &len);
+
+	EVP_CIPHER_CTX_free(ctx);
+
+    if(ret < 0)
+		return NULL;
+	sumControl(*plaintext_len, len);
+	*plaintext_len += len;
+	plaintext = (unsigned char*) malloc((*plaintext_len));
+	if(!plaintext){
+		perror("Error during malloc()");
+		exit(-1);
+	}
+	memcpy(plaintext, buffer, *plaintext_len);
+	free(tag);
+	free(iv);
+	free(aad);
+	free(buffer);
+	free(ciphertext);
 	return plaintext;
 }
+
+

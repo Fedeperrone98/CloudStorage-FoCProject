@@ -383,6 +383,7 @@ int main(int argc, char* const argv[]) {
                     int count_c=0;
 
                     while(1){
+                        cout << " dentro while" << endl;
                         //ricevo la dimensione del messaggio di sessione
                         msg_receive_len = receive_len(new_fd);
 
@@ -391,17 +392,49 @@ int main(int argc, char* const argv[]) {
 
                         //decifro il messaggio ricevuto
                         plaintext = symmetricDecription(msg_to_receive, msg_receive_len, &pt_len, session_key, &count_c);
+                        if (plaintext==NULL)
+                            cout << "plaintext nullo" << endl;
+                        else
+                            cout << "preso plaintext" << endl;
 
+                        cout << "plaintext: " << plaintext << endl;
+                            
                         //estraggo il type
                         unsigned char * type;
-                        type= (unsigned char *)malloc(constants::TYPE_CODE_SIZE);
+                        type= (unsigned char *)malloc(4);
+                        
                         if(!type){
                             perror("Error during malloc()");
                             exit(-1);
                         }
-                        extract_data_from_array(type, plaintext, 0, constants::TYPE_CODE_SIZE);
+                        extract_data_from_array(type, plaintext, 0, 4);
+                        string command=(char*)type;
+                        if(command==constants::Logout_request)
+                        {
+                            //mando il messaggio di ack: <IV | AAD | tag | ack>
+                            msg_to_send = symmetricEncryption((unsigned char*)constants::Acknowledgment, sizeof(constants::Acknowledgment), session_key, &msg_send_len, &count_s);
+                            
+                            
+                            //mando la dimesione del messaggio
+                            send_int(new_fd, msg_send_len);
 
-                        switch (atoi((const char *)type))
+                            //mando il messaggio
+                            send_obj(new_fd, msg_to_send, msg_send_len);
+
+                            cout<< "client logout" << endl;
+
+                            free(session_key);
+                            free(msg_to_receive);
+                            free(msg_to_send);
+                            free(plaintext);
+                            free(type);
+
+                            close(new_fd);
+                            break;
+
+                        }
+                        /*
+                        switch (command)
                         {
                         case (int)constants::Upload_request :
                             //******************************************************************************
@@ -451,6 +484,8 @@ int main(int argc, char* const argv[]) {
                             //mando il messaggio di ack: <IV | AAD | tag | ack>
                             msg_to_send = symmetricEncryption((unsigned char*)constants::Acknowledgment, constants::TYPE_CODE_SIZE, session_key, &msg_send_len, &count_s);
                             
+
+                            cout << "cazzata5" << endl;
                             //mando la dimesione del messaggio
                             send_int(new_fd, msg_send_len);
 
@@ -467,7 +502,7 @@ int main(int argc, char* const argv[]) {
                         
                         default:
                             break;
-                        }
+                        }*/
 
                     }
 

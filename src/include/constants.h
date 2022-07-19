@@ -34,18 +34,17 @@ namespace constants
     constexpr unsigned int DIM_NAME_CA_CRL = 49;
 
     //TYPE CODE
-    constexpr unsigned int TYPE_CODE_SIZE= 1;
-    constexpr const char Upload_request = 0x01;
-    constexpr const char Acknowledgment = 0x02;
-    constexpr const char Not_acknowledgment = 0x03;
-    constexpr const char File_content = 0x04;
-    constexpr const char Download_request = 0x05;
-    constexpr const char Size = 0x06;
-    constexpr const char Delete_request = 0x07;
-    constexpr const char Ask_confirmation = 0x08;
-    constexpr const char List_request = 0x09;
-    constexpr const char List_file = 0x10;
-    constexpr const char Rename_request = 0x11;
-    constexpr const char Logout_request = 0x12;
+    constexpr const char* Upload_request = "upl";
+    constexpr const char* Acknowledgment = "ack";
+    constexpr const char* Not_acknowledgment = "not";
+    constexpr const char* File_content = "con";
+    constexpr const char* Download_request = "dow";
+    constexpr const char* Size = "siz";
+    constexpr const char* Delete_request = "del";
+    constexpr const char* Ask_confirmation = "ask";
+    constexpr const char* List_request = "lre";
+    constexpr const char* List_file = "lfi";
+    constexpr const char* Rename_request = "ren";
+    constexpr const char* Logout_request = "log";
 }
 #endif
