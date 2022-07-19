@@ -383,7 +383,6 @@ int main(int argc, char* const argv[]) {
                     int count_c=0;
 
                     while(1){
-                        cout << " dentro while" << endl;
                         //ricevo la dimensione del messaggio di sessione
                         msg_receive_len = receive_len(new_fd);
 
@@ -392,28 +391,28 @@ int main(int argc, char* const argv[]) {
 
                         //decifro il messaggio ricevuto
                         plaintext = symmetricDecription(msg_to_receive, msg_receive_len, &pt_len, session_key, &count_c);
-                        if (plaintext==NULL)
-                            cout << "plaintext nullo" << endl;
-                        else
-                            cout << "preso plaintext" << endl;
 
-                        cout << "plaintext: " << plaintext << endl;
-                            
                         //estraggo il type
                         unsigned char * type;
-                        type= (unsigned char *)malloc(4);
-                        
+                        type= (unsigned char *)malloc(constants::TYPE_CODE_SIZE);                        
                         if(!type){
                             perror("Error during malloc()");
                             exit(-1);
                         }
-                        extract_data_from_array(type, plaintext, 0, 4);
+
+                        extract_data_from_array(type, plaintext, 0, constants::TYPE_CODE_SIZE);
                         string command=(char*)type;
+                        
                         if(command==constants::Logout_request)
                         {
+                            //******************************************************************************
+                            //          LOGOUT
+                            //******************************************************************************
+                            
+                            cout << endl << "Logout request..." << endl;
+
                             //mando il messaggio di ack: <IV | AAD | tag | ack>
                             msg_to_send = symmetricEncryption((unsigned char*)constants::Acknowledgment, sizeof(constants::Acknowledgment), session_key, &msg_send_len, &count_s);
-                            
                             
                             //mando la dimesione del messaggio
                             send_int(new_fd, msg_send_len);
@@ -421,7 +420,9 @@ int main(int argc, char* const argv[]) {
                             //mando il messaggio
                             send_obj(new_fd, msg_to_send, msg_send_len);
 
-                            cout<< "client logout" << endl;
+                            cout  << "Sended message <IV | AAD | tag | Acknowledgement_type>" << endl;
+
+                            cout << "Logout: success" << endl << endl;
 
                             free(session_key);
                             free(msg_to_receive);
@@ -432,80 +433,47 @@ int main(int argc, char* const argv[]) {
                             close(new_fd);
                             break;
 
-                        }
-                        /*
-                        switch (command)
-                        {
-                        case (int)constants::Upload_request :
+                        }else if(command==constants::Upload_request){
+
                             //******************************************************************************
                             //          UPLOAD
                             //******************************************************************************
-                            
-                            
-                            break;
+                            cout << endl << "Upload request..." << endl;
 
-                        case (int)constants::Download_request :
+                        }else if(command==constants::Download_request){
+
                             //******************************************************************************
                             //          DOWNLOAD
                             //******************************************************************************
-                            
-                            
-                            break;
-                        
-                        case (int)constants::Delete_request :
+                            cout << endl << "Download request..." << endl;
+
+                        }else if(command==constants::Delete_request){
+
                             //******************************************************************************
                             //          DELETE
                             //******************************************************************************
-                            
-                            
-                            break;
+                            cout << endl << "Delete request..." << endl;
 
-                        case (int)constants::List_request :
+                        }else if(command==constants::List_request){
+
                             //******************************************************************************
                             //          LIST
                             //******************************************************************************
-                            
-                            
-                            break;
+                            cout << endl << "List request..." << endl;
 
-                        case (int)constants::Rename_request :
+                        }else if(command==constants::Rename_request){
+
                             //******************************************************************************
                             //          RENAME
                             //******************************************************************************
-                            
-                            
-                            break;
+                            cout << endl << "Rename request..." << endl;
 
-                        case (int)constants::Logout_request :
-                            //******************************************************************************
-                            //          LOGOUT
-                            //******************************************************************************
-                            
-                            //mando il messaggio di ack: <IV | AAD | tag | ack>
-                            msg_to_send = symmetricEncryption((unsigned char*)constants::Acknowledgment, constants::TYPE_CODE_SIZE, session_key, &msg_send_len, &count_s);
-                            
+                        }else {
 
-                            cout << "cazzata5" << endl;
-                            //mando la dimesione del messaggio
-                            send_int(new_fd, msg_send_len);
+                            cout << endl <<"Received invalid request" << endl;
 
-                            //mando il messaggio
-                            send_obj(new_fd, msg_to_send, msg_send_len);
-
-                            free(session_key);
-                            free(msg_to_receive);
-                            free(msg_to_send);
-                            free(plaintext);
-                            free(type);
-
-                            break;
-                        
-                        default:
-                            break;
-                        }*/
-
+                        }
                     }
-
                     close(new_fd);
                 }
             }

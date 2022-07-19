@@ -383,7 +383,7 @@ int main(int argc, char *const argv[])
 
     int count_s = 0;
     int count_c = 0;
-    unsigned char *array;
+    unsigned char *array= NULL;
     while (1)
     {
         cout << "*********************MENU*****************" << endl;
@@ -399,6 +399,8 @@ int main(int argc, char *const argv[])
         int operation;
         cin >> operation;
         
+        if(array!=NULL)
+            free(array);
 
         switch (operation)
         {
@@ -443,39 +445,35 @@ int main(int argc, char *const argv[])
             cout << endl << "Init Logout..." << endl;
 
             // messaggio di richiesta: <IV | AAD | tag | Logout_request>
-            // plaintext = (unsigned char*)malloc(1);
-            //strcpy((char*)array, "logout");
             array=(unsigned char*)malloc(sizeof(constants::Logout_request));
             if(array == NULL){
                 perror("Error during malloc()\n");
                 exit(-1);
             }
-            cout << "invio: " << constants::Logout_request << endl;
+            
             memcpy(array, constants::Logout_request, sizeof(constants::Logout_request));
             msg_to_send = symmetricEncryption(array, sizeof(array), session_key, &msg_send_len, &count_c);
-            cout << "ok" << endl;
-            
+             
             // mando la dimesione del messaggio
             send_int(sd, msg_send_len);
 
             // mando il messaggio
             send_obj(sd, msg_to_send, msg_send_len);
 
-            cout << endl << "Sended message <IV | AAD | tag | Logout_request_type>" << endl;
+            cout  << "Sended message <IV | AAD | tag | Logout_request_type>" << endl;
 
             // ricevo l'ack
             msg_receive_len = receive_len(sd);
             receive_obj(sd, msg_to_receive, msg_receive_len);
 
-            //free(plaintext);
+            cout << "Received message <IV | AAD | tag | Acknowledgement_type>" << endl;
 
             // decifro il messaggio
             plaintext = symmetricDecription(msg_to_receive, msg_receive_len, &pt_len, session_key, &count_s);
-            cout << "plaintext ricevuto: " << plaintext << endl;
-
+            
             if(!strncmp((const char*)plaintext, constants::Acknowledgment, sizeof(constants::Acknowledgment)))
             {
-                cout << endl << "logout: success" << endl;
+                cout << "Logout: success" << endl << endl;
                 free(session_key);
                 free(msg_to_send);
                 free(plaintext);
@@ -483,12 +481,11 @@ int main(int argc, char *const argv[])
                 return 0;
             }            
 
-            cout << endl << "logout: unsuccess" << endl;
+            cout << endl << "Logout: unsuccess" << endl << endl;
             break;
 
         default:
-            cout << endl
-                 << "Insert a valid code operation" << endl;
+            cout << endl << "Insert a valid code operation" << endl;
             break;
         }
     }
