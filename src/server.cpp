@@ -174,11 +174,15 @@ int main(int argc, char* const argv[]) {
                     unsigned char nonce_s[constants::NONCE_SIZE];
                     generateNonce(nonce_s);                    
 
+                    cout << "ok1" << endl;
+
                     sumControl(constants::NONCE_SIZE, cert_size);
 
                     // mando la dimensione del messaggio <Ns | certs>
                     size_t msg_len= constants::NONCE_SIZE + cert_size;
                     send_int(new_fd, msg_len);
+
+                    cout << "ok2" << endl;
 
                     // mando il vero messaggio
                     unsigned char msg[msg_len];
@@ -188,24 +192,31 @@ int main(int argc, char* const argv[]) {
 
                     cout << "Sended Certificate and nonce to the client" << endl;
 
-                    OPENSSL_free(cert_buf);
+                    //OPENSSL_free(cert_buf);
 	                X509_free(cert_server);
+                    cout << "ok3" << endl;
 
                     //**************** ricezione terzo messaggio *****************
 
                     //aspetto di ricevere la lunghezza del prossimo messaggio
                     msg_receive_len=receive_len(new_fd);
+                    cout << "ok3.0" << endl;
 
                     //aspetto di ricevere la lunghezza della firma
                     int signature_len=receive_len(new_fd);
 
                     //aspetto l'intero messaggio
+                    cout << "ok3.1" << endl;
+                    cout << "msg_recive_len: " << msg_receive_len << endl;
+                    cout << "msg_to_receive: " << msg_to_receive << endl;
                     msg_to_receive=(unsigned char*)malloc(msg_receive_len);
                     if(!msg_to_receive){
                         perror("Error during malloc()");
                         exit(-1);
                     }
+                    cout << "ok4" << endl;
                     receive_obj(new_fd, msg_to_receive, msg_receive_len);
+                    cout << "ok5" << endl;
 
                     cout << "Received message: <EncKey | IV | Nc | Yc | sign>" << endl;
 
