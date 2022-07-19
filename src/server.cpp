@@ -17,18 +17,7 @@
 using namespace std;
 namespace fs = std::experimental::filesystem;
 
-struct user{
-    string username;
-    //unsigned char* cloudStorage=NULL;
-    //string cloudStorage;
-    string cloudStorage;
-
-    unsigned int count_client =0;
-    unsigned int count_server=0;
-};
-
 int main(int argc, char* const argv[]) {
-    struct user users[constants::TOT_USERS];
     unsigned int n_users=0;
 
     int ret, i;
@@ -107,6 +96,22 @@ int main(int argc, char* const argv[]) {
     //tengo traccia del maggiore
 	fdmax=listener;
 
+    //variabile per controllare l'esistenza della cartella degli utenti
+    const auto processWorkingDir = fs::current_path();
+
+    //carico il certificato del server
+    X509* cert_server;
+    loadCertificate(cert_server, "server");
+    //buffer che conterrà la serializzazione del certificato
+    unsigned char* cert_buf = NULL;
+    //serializzazione certificato
+    unsigned int cert_size = i2d_X509(cert_server, &cert_buf);
+
+    if(cert_size < 0) {
+        perror("certificate size error");
+        exit(-1);
+    }
+
     while(1){
         reads_fds=master;
 
@@ -151,7 +156,8 @@ int main(int argc, char* const argv[]) {
 
                     string path=(string)constants::DIR_SERVER + (string)username;
                     
-                    const auto processWorkingDir = fs::current_path();
+                    //const auto processWorkingDir = fs::current_path();
+                    //const auto existingDir = processWorkingDir / path;
                     const auto existingDir = processWorkingDir / path;
 
                     if(fs::is_directory(path))
@@ -162,28 +168,11 @@ int main(int argc, char* const argv[]) {
                         continue;
                     }
 
-                    users[n_users].username = username;                    
-                    users[n_users].cloudStorage= path;
-                    n_users++;
-
                     //**************** invio secondo messaggio *****************
 
                     //genero N_s
                     unsigned char nonce_s[constants::NONCE_SIZE];
-                    generateNonce(nonce_s);
-
-                    //carico il certificato del server
-                    X509* cert_server;
-                    loadCertificate(cert_server, "server");
-                    //buffer che conterrà la serializzazione del certificato
-                    unsigned char* cert_buf = NULL;
-                    //serializzazione certificato
-                    unsigned int cert_size = i2d_X509(cert_server, &cert_buf);
-
-                    if(cert_size < 0) {
-                        perror("certificate size error");
-                        exit(-1);
-                    }
+                    generateNonce(nonce_s);                    
 
                     sumControl(constants::NONCE_SIZE, cert_size);
 
@@ -382,6 +371,10 @@ int main(int argc, char* const argv[]) {
                     int count_s=0;
                     int count_c=0;
 
+                    unsigned char filename[constants::DIM_FILENAME];
+                    long long int dim_file;
+                    unsigned char * dim_file_str;
+
                     while(1){
                         //ricevo la dimensione del messaggio di sessione
                         msg_receive_len = receive_len(new_fd);
@@ -392,7 +385,6 @@ int main(int argc, char* const argv[]) {
                         //decifro il messaggio ricevuto
                         plaintext = symmetricDecription(msg_to_receive, msg_receive_len, &pt_len, session_key, &count_c);
 
-                        cout << "plaintext: " << plaintext << endl;;
                         //estraggo il type
                         unsigned char * type;
                         type= (unsigned char *)malloc(constants::TYPE_CODE_SIZE);                        
@@ -412,23 +404,12 @@ int main(int argc, char* const argv[]) {
                             
                             cout << endl << "Logout request..." << endl;
 
-                            //mando il messaggio di ack: <IV | AAD | tag | ack>
-                            msg_to_send = symmetricEncryption((unsigned char*)constants::Acknowledgment, sizeof(constants::Acknowledgment), session_key, &msg_send_len, &count_s);
-                            
-                            //mando la dimesione del messaggio
-                            send_int(new_fd, msg_send_len);
-
-                            //mando il messaggio
-                            send_obj(new_fd, msg_to_send, msg_send_len);
-
-                            cout  << "Sended message <IV | AAD | tag | Acknowledgement_type>" << endl;
+                            send_ack(new_fd, session_key, &count_s);
 
                             cout << "Logout: success" << endl << endl;
-                            cout << "ok" << endl;
 
                             free(session_key);
-                            free(msg_to_receive);
-                            free(msg_to_send);
+                            //free(msg_to_send);
                             free(plaintext);
                             free(type);
 
@@ -441,6 +422,25 @@ int main(int argc, char* const argv[]) {
                             //          UPLOAD
                             //******************************************************************************
                             cout << endl << "Upload request..." << endl;
+
+                            // messaggio di richiesta: <IV | AAD | tag | upload_request | filename | size>
+
+                            //estraggo il filename  
+                            extract_data_from_array(filename, plaintext, constants::TYPE_CODE_SIZE, constants::DIM_FILENAME);
+
+                            //estraggo il size
+                            subControl(pt_len,constants::TYPE_CODE_SIZE );
+                            subControl(pt_len - constants::TYPE_CODE_SIZE, constants::DIM_FILENAME);
+                            int size_dim = pt_len - constants::TYPE_CODE_SIZE - constants::DIM_FILENAME;
+                            dim_file_str=(unsigned char *)malloc(size_dim);
+                            if(!dim_file_str){
+                                perror("malloc(): ");
+                                exit(-1);
+                            }
+                            extract_data_from_array(dim_file_str, plaintext, constants::TYPE_CODE_SIZE+constants::DIM_FILENAME, size_dim);
+                            dim_file = strtoll((const char*)dim_file_str, NULL, 10);
+
+                            send_ack(new_fd, session_key, &count_s);
 
                         }else if(command==constants::Download_request){
 

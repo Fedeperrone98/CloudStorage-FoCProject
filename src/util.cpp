@@ -122,7 +122,7 @@ void concat2Elements(unsigned char* dest, unsigned char* src1, unsigned char* sr
 }
 
 bool control_white_list(string str){
-	const char * ok_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890_";
+	const char * ok_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890_.";
     if(str.find_first_not_of(ok_chars) != string::npos){
 		return false;
 	}
@@ -147,4 +147,6 @@ void extract_data_from_array(unsigned char* dest, unsigned char* src, int start,
 	memset(dest, 0, end-start);
 	memcpy(dest, src+start, end-start);
 }
+
+
 

@@ -680,10 +680,11 @@ unsigned char* symmetricEncryption(unsigned char *plaintext, int plaintext_len, 
 
     do{
         subControl(plaintext_len, outlen_tot);
-        if((plaintext_len - outlen_tot) < EVP_CIPHER_block_size(cipher))
-            byte_to_enc= plaintext_len;
-        else
-            byte_to_enc=  EVP_CIPHER_block_size(cipher);
+        if((plaintext_len - outlen_tot) < 16){
+            byte_to_enc= plaintext_len-outlen_tot;
+        }else{
+            byte_to_enc= 16;
+        }
 
         ret = EVP_EncryptUpdate(ctx, ciphertext+outlen_tot, &len, plaintext+outlen_tot, byte_to_enc);
         if(1 != ret)
@@ -694,7 +695,8 @@ unsigned char* symmetricEncryption(unsigned char *plaintext, int plaintext_len, 
 
         subControl(plaintext_len, outlen_tot);
 
-    }while( (plaintext_len - outlen_tot) >=  EVP_CIPHER_block_size(cipher));
+    }while(plaintext_len- outlen_tot!=0);
+    //while( (plaintext_len - outlen_tot) >=  EVP_CIPHER_block_size(cipher));
 
     //ciphertext_len = len;
     ciphertext_len = outlen_tot;
@@ -793,10 +795,10 @@ unsigned char* symmetricDecription(unsigned char *recv_buffer, int bufferLen, in
 
     do{
         subControl(bufferLen, outlen_tot);
-        if((bufferLen - outlen_tot) < EVP_CIPHER_block_size(cipher))
-            byte_to_dec= bufferLen;
+        if((bufferLen - outlen_tot) <16)
+            byte_to_dec= bufferLen-outlen_tot;
         else
-            byte_to_dec=  EVP_CIPHER_block_size(cipher);
+            byte_to_dec=   16;
 
         if(!EVP_DecryptUpdate(ctx, buffer+outlen_tot, &len, ciphertext+outlen_tot, byte_to_dec))
             handleErrors();
@@ -805,9 +807,11 @@ unsigned char* symmetricDecription(unsigned char *recv_buffer, int bufferLen, in
         outlen_tot+=len;
 
         subControl(bufferLen, outlen_tot);
-    }while((bufferLen - outlen_tot) >=  EVP_CIPHER_block_size(cipher));
+    }while(bufferLen- outlen_tot!=0);
+    //while((bufferLen - outlen_tot) >=  EVP_CIPHER_block_size(cipher));
 
-    *plaintext_len = len;
+    *plaintext_len = outlen_tot;
+    //*plaintext_len = len;
     if(!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, 16, tag))
         handleErrors();
 
@@ -838,4 +842,20 @@ unsigned char* symmetricDecription(unsigned char *recv_buffer, int bufferLen, in
 	return plaintext;
 }
 
+void send_ack( int sd, unsigned char * session_key, int *count){
+	int msg_send_len;
+	//mando il messaggio di ack: <IV | AAD | tag | ack>
+	unsigned char *msg_to_send = symmetricEncryption((unsigned char*)constants::Acknowledgment, constants::TYPE_CODE_SIZE, session_key, &msg_send_len, count);
+	
+	//mando la dimesione del messaggio
+	send_int(sd, msg_send_len);
+
+	//mando il messaggio
+	send_obj(sd, msg_to_send, msg_send_len);
+
+	cout  << "Sended message <IV | AAD | tag | Acknowledgement_type>" << endl;
+
+	free(msg_to_send);
+
+}
 

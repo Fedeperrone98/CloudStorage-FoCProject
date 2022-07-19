@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string>
 #include <iostream>
 #include <sys/types.h>
 #include <sys/time.h>
@@ -10,8 +11,10 @@
 #include <netinet/in.h>
 #include "include/constants.h"
 #include "crypto.cpp"
+#include <experimental/filesystem>
 
 using namespace std;
+namespace fs = std::experimental::filesystem;
 
 int main(int argc, char *const argv[])
 {
@@ -31,8 +34,7 @@ int main(int argc, char *const argv[])
     {
         cout << "Error: insert the client port number\n";
         cin >> port;
-        while ('\n' != getchar())
-            ;
+        while ('\n' != getchar());
     }
     else
     {
@@ -43,8 +45,7 @@ int main(int argc, char *const argv[])
     {
         cout << "Error: insert a valid port number\n";
         cin >> port;
-        while ('\n' != getchar())
-            ;
+        while ('\n' != getchar());
     }
 
     char username[constants::DIM_USERNAME];
@@ -384,6 +385,11 @@ int main(int argc, char *const argv[])
     int count_s = 0;
     int count_c = 0;
     unsigned char *array= NULL;
+    char filename[constants::DIM_FILENAME];
+    string canon_file_name;
+    FILE *clear_file;
+    string path;
+    long long int dim_file;
     while (1)
     {
         cout << "*********************MENU*****************" << endl;
@@ -398,6 +404,7 @@ int main(int argc, char *const argv[])
 
         int operation;
         cin >> operation;
+        while ('\n' != getchar());
         
         if(array!=NULL)
             free(array);
@@ -408,8 +415,82 @@ int main(int argc, char *const argv[])
             //******************************************************************************
             //          UPLOAD
             //******************************************************************************
-            break;
+            //chiedo il file da criptare
+            cout << endl << "Please, type the file to upload: " << endl;
+            memset(filename, 0, constants::DIM_FILENAME);
+            if (!fgets(filename, constants::DIM_FILENAME, stdin))
+            {
+                perror("Error during the reading from stdin\n");
+                exit(-1);
+            }
+            charPointer = strchr(filename, '\n');
+            if (charPointer)
+                *charPointer = '\0';
+            
+            // controllo che il filename non contenga caratteri speciali
+            rett = control_white_list(filename);
+            while (!rett)
+            {
+                cout << "Filename not valid" << endl;
+                cout << "Please, insert a valid filename:" << endl;
+                memset(filename, 0, constants::DIM_FILENAME);
+                if (!fgets(filename, constants::DIM_FILENAME, stdin))
+                {
+                    perror("Error during the reading from stdin\n");
+                    exit(-1);
+                }
+                charPointer = strchr(filename, '\n');
+                if (charPointer)
+                    *charPointer = '\0';
 
+                // controllo che lo username non contenga caratteri speciali
+                rett = control_white_list(filename);
+            }
+            path = (string)constants::DIR_CLIENTS + (string)username + "/" + filename;
+            cout <<  "path:" << path << endl;
+            canon_file_name = canonicalization(path);
+            cout << "canon_file: " << canon_file_name << endl;
+        
+            //apro il file da caricare
+            clear_file= fopen(canon_file_name.c_str(), "rb");
+            if(!clear_file){
+                perror("Error: cannot open file ");
+                continue;
+            }
+            
+            //leggo la dimensione del file
+            dim_file = fs::file_size(canon_file_name);
+
+            // messaggio di richiesta: <IV | AAD | tag | upload_request | filename | size>
+            array=(unsigned char*)malloc(constants::TYPE_CODE_SIZE);
+            if(array == NULL){
+                perror("Error during malloc()\n");
+                exit(-1);
+            }
+            memcpy(array, constants::Upload_request, constants::TYPE_CODE_SIZE);
+
+            sumControl(constants::TYPE_CODE_SIZE, sizeof(filename) );
+            sumControl(constants::TYPE_CODE_SIZE + sizeof(filename), sizeof(to_string(dim_file)));
+            pt_len = constants::TYPE_CODE_SIZE + sizeof(filename) + sizeof(to_string(dim_file));
+            plaintext = (unsigned char *)malloc(pt_len);
+            if (!plaintext)
+            {
+                perror("Error during malloc()");
+                exit(-1);
+            }
+            memcpy(plaintext, array, constants::TYPE_CODE_SIZE);
+            concatElements(plaintext, (unsigned char*)filename, constants::TYPE_CODE_SIZE, sizeof(filename));
+            concatElements(plaintext, (unsigned char*)to_string(dim_file).c_str(), constants::TYPE_CODE_SIZE + sizeof(filename), sizeof(to_string(dim_file)));
+
+            msg_to_send= symmetricEncryption(plaintext, pt_len, session_key, &msg_send_len, &count_c);
+
+            send_int(sd, msg_send_len);
+            send_obj(sd, msg_to_send, msg_send_len);
+
+            cout << "Sended message: <IV | AAD | tag | upload_request | filename | size>" << endl;
+
+            break;
+        
         case 2:
             //******************************************************************************
             //          DOWNLOAD
@@ -445,14 +526,14 @@ int main(int argc, char *const argv[])
             cout << endl << "Init Logout..." << endl;
 
             // messaggio di richiesta: <IV | AAD | tag | Logout_request>
-            array=(unsigned char*)malloc(sizeof(constants::Logout_request));
+            array=(unsigned char*)malloc(constants::TYPE_CODE_SIZE);
             if(array == NULL){
                 perror("Error during malloc()\n");
                 exit(-1);
             }
             
-            memcpy(array, constants::Logout_request, sizeof(constants::Logout_request));
-            msg_to_send = symmetricEncryption(array, sizeof(array), session_key, &msg_send_len, &count_c);
+            memcpy(array, constants::Logout_request, constants::TYPE_CODE_SIZE);
+            msg_to_send = symmetricEncryption(array, constants::TYPE_CODE_SIZE, session_key, &msg_send_len, &count_c);
              
             // mando la dimesione del messaggio
             send_int(sd, msg_send_len);
@@ -474,13 +555,12 @@ int main(int argc, char *const argv[])
             if(!strncmp((const char*)plaintext, constants::Acknowledgment, sizeof(constants::Acknowledgment)))
             {
                 cout << "Logout: success" << endl << endl;
-                cout << "ok" << endl;
                 free(session_key);
                 free(msg_to_send);
                 free(plaintext);
                 close(sd);
                 return 0;
-            }            
+            }          
 
             cout << endl << "Logout: unsuccess" << endl << endl;
             break;

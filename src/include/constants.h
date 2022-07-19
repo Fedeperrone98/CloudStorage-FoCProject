@@ -7,6 +7,7 @@ namespace constants
     constexpr const char* LOCAL_HOST ="127.0.0.1";
 
     constexpr unsigned int DIM_USERNAME = 30;
+    constexpr unsigned int DIM_FILENAME = 30;
     constexpr unsigned int TOT_USERS = 4;
 
     constexpr unsigned int DIM_PASSWORD = 30;
