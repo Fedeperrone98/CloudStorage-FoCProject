@@ -474,6 +474,7 @@ int main(int argc, char *const argv[])
             if(!strncmp((const char*)plaintext, constants::Acknowledgment, sizeof(constants::Acknowledgment)))
             {
                 cout << "Logout: success" << endl << endl;
+                cout << "ok" << endl;
                 free(session_key);
                 free(msg_to_send);
                 free(plaintext);

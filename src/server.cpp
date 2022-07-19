@@ -392,6 +392,7 @@ int main(int argc, char* const argv[]) {
                         //decifro il messaggio ricevuto
                         plaintext = symmetricDecription(msg_to_receive, msg_receive_len, &pt_len, session_key, &count_c);
 
+                        cout << "plaintext: " << plaintext << endl;;
                         //estraggo il type
                         unsigned char * type;
                         type= (unsigned char *)malloc(constants::TYPE_CODE_SIZE);                        
@@ -423,6 +424,7 @@ int main(int argc, char* const argv[]) {
                             cout  << "Sended message <IV | AAD | tag | Acknowledgement_type>" << endl;
 
                             cout << "Logout: success" << endl << endl;
+                            cout << "ok" << endl;
 
                             free(session_key);
                             free(msg_to_receive);
