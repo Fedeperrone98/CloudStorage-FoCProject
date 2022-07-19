@@ -402,10 +402,17 @@ int main(int argc, char* const argv[]) {
             //******************************************************************************
             //          LOGOUT
             //******************************************************************************
-            
+            cout << endl <<  "Init Logout..." << endl;
+
             //messaggio di richiesta: <IV | AAD | tag | Logout_request>
-            msg_to_send = symmetricEncryption((unsigned char*)constants::Logout_request, constants::TYPE_CODE_SIZE, session_key, &msg_send_len, &count_c);
-            
+            plaintext = (unsigned char*)malloc(constants::TYPE_CODE_SIZE);
+            if(plaintext == NULL){
+                perror("Error during malloc()\n");
+                exit(-1);
+            }
+            memcpy(plaintext, (const char*)constants::Logout_request, constants::TYPE_CODE_SIZE);
+            msg_to_send = symmetricEncryption(plaintext, sizeof(constants::Logout_request), session_key, &msg_send_len, &count_c);
+            cout << "ok" << endl;
             //mando la dimesione del messaggio
             send_int(sd, msg_send_len);
 
@@ -414,11 +421,28 @@ int main(int argc, char* const argv[]) {
 
             cout << endl << "Sended message <IV | AAD | tag | Logout_request_type>" << endl;
             
+            //ricevo l'ack
+            msg_receive_len=receive_len(sd);
+            receive_obj(sd, msg_to_receive, msg_receive_len);
+
+            free(plaintext);
+
+            //decifro il messaggio
+            plaintext= symmetricDecription(msg_to_receive, msg_receive_len, &pt_len, session_key, &count_c);
+            if(*plaintext == constants::Acknowledgment){
+                cout << "Logout: success" << endl;
+            }
+
+            free(session_key);
+            free(msg_to_receive);
+            free(msg_to_send);
+            free(plaintext);
+
             cout << endl << "End SESSION" << endl;
 
             close(sd);
             return 0;
-            
+
             break;
         
         default:

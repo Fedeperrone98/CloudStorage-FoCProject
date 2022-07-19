@@ -644,10 +644,12 @@ unsigned char* symmetricEncryption(unsigned char *plaintext, int plaintext_len, 
 	unsigned char* outBuffer;
     const EVP_CIPHER* cipher = EVP_aes_128_gcm();
 
-	unsigned char* tag = (unsigned char*) malloc(constants::TAG_LEN);
+    cout << "plaintext:" << plaintext << endl;
+
+	unsigned char* tag = (unsigned char*) malloc(16);
 
 	sumControl(plaintext_len, EVP_CIPHER_block_size(cipher));
-	unsigned char* ciphertext = (unsigned char*) malloc(plaintext_len + EVP_CIPHER_block_size(cipher));
+	unsigned char* ciphertext = (unsigned char*) malloc(plaintext_len + /*EVP_CIPHER_block_size(cipher)*/ 16);
 
 	unsigned char* iv = (unsigned char*) malloc(constants::IV_LEN);
 
@@ -678,17 +680,26 @@ unsigned char* symmetricEncryption(unsigned char *plaintext, int plaintext_len, 
     if(1 != ret)
         handleErrors();
 
-    while(1){
+    cout << "ok1" << endl;
+
+    ret = EVP_EncryptUpdate(ctx, ciphertext, &len, plaintext, plaintext_len);
+    if(1 != ret)
+        handleErrors();
+
+    /*while(1){
         ret = EVP_EncryptUpdate(ctx, ciphertext+outlen_tot, &len, plaintext+outlen_tot, EVP_CIPHER_block_size(cipher));
         if(1 != ret)
             handleErrors();
         outlen_tot+=len;
         if(plaintext_len - outlen_tot < EVP_CIPHER_block_size(cipher))
             break;
-    }
+    }*/
+
+    cout << "ok2" << endl;
         
-    ciphertext_len = outlen_tot;
-	ret = EVP_EncryptFinal(ctx, ciphertext + outlen_tot, &len);
+    //ciphertext_len = outlen_tot;
+    ciphertext_len =len;
+	ret = EVP_EncryptFinal(ctx, ciphertext + len, &len);
     if(1 != ret)
         handleErrors();
 

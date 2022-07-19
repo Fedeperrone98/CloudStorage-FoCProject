@@ -392,12 +392,18 @@ int main(int argc, char* const argv[]) {
                         //decifro il messaggio ricevuto
                         plaintext = symmetricDecription(msg_to_receive, msg_receive_len, &pt_len, session_key, &count_c);
 
-                        //non è detto che plaintext contenga solo type
-
                         //estraggo il type
-                        switch (plaintext)
+                        unsigned char * type;
+                        type= (unsigned char *)malloc(constants::TYPE_CODE_SIZE);
+                        if(!type){
+                            perror("Error during malloc()");
+                            exit(-1);
+                        }
+                        extract_data_from_array(type, plaintext, 0, constants::TYPE_CODE_SIZE);
+
+                        switch (atoi((const char *)type))
                         {
-                        case (unsigned char *)constants::Upload_request :
+                        case (int)constants::Upload_request :
                             //******************************************************************************
                             //          UPLOAD
                             //******************************************************************************
@@ -405,7 +411,7 @@ int main(int argc, char* const argv[]) {
                             
                             break;
 
-                        case (unsigned char *)constants::Download_request :
+                        case (int)constants::Download_request :
                             //******************************************************************************
                             //          DOWNLOAD
                             //******************************************************************************
@@ -413,7 +419,7 @@ int main(int argc, char* const argv[]) {
                             
                             break;
                         
-                        case (unsigned char *)constants::Delete_request :
+                        case (int)constants::Delete_request :
                             //******************************************************************************
                             //          DELETE
                             //******************************************************************************
@@ -421,7 +427,7 @@ int main(int argc, char* const argv[]) {
                             
                             break;
 
-                        case (unsigned char *)constants::List_request :
+                        case (int)constants::List_request :
                             //******************************************************************************
                             //          LIST
                             //******************************************************************************
@@ -429,7 +435,7 @@ int main(int argc, char* const argv[]) {
                             
                             break;
 
-                        case (unsigned char *)constants::Rename_request :
+                        case (int)constants::Rename_request :
                             //******************************************************************************
                             //          RENAME
                             //******************************************************************************
@@ -437,14 +443,26 @@ int main(int argc, char* const argv[]) {
                             
                             break;
 
-                        case (unsigned char *)constants::Logout_request :
+                        case (int)constants::Logout_request :
                             //******************************************************************************
                             //          LOGOUT
                             //******************************************************************************
                             
-                            //mando il messaggio di ack
+                            //mando il messaggio di ack: <IV | AAD | tag | ack>
                             msg_to_send = symmetricEncryption((unsigned char*)constants::Acknowledgment, constants::TYPE_CODE_SIZE, session_key, &msg_send_len, &count_s);
                             
+                            //mando la dimesione del messaggio
+                            send_int(new_fd, msg_send_len);
+
+                            //mando il messaggio
+                            send_obj(new_fd, msg_to_send, msg_send_len);
+
+                            free(session_key);
+                            free(msg_to_receive);
+                            free(msg_to_send);
+                            free(plaintext);
+                            free(type);
+
                             break;
                         
                         default:
