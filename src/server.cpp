@@ -209,6 +209,7 @@ int main(int argc, char* const argv[]) {
                     cout << "ok3.1" << endl;
                     cout << "msg_recive_len: " << msg_receive_len << endl;
                     cout << "msg_to_receive: " << msg_to_receive << endl;
+                    //ERRORE
                     msg_to_receive=(unsigned char*)malloc(msg_receive_len);
                     if(!msg_to_receive){
                         perror("Error during malloc()");
