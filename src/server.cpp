@@ -148,7 +148,6 @@ int main(int argc, char* const argv[]) {
                     //estraggo chiave privata
                     EVP_PKEY * prvKey_s=readPrivateKey("server", password, "server");
 
-                    cout<<"carico chiave privata .." << endl;
                     //**************** ricezione primo messaggio *****************
 
                     char username[constants::DIM_USERNAME];
@@ -175,7 +174,6 @@ int main(int argc, char* const argv[]) {
                     //genero N_s
                     unsigned char nonce_s[constants::NONCE_SIZE];
                     generateNonce(nonce_s);                    
-
 
                     sumControl(constants::NONCE_SIZE, cert_size);
 
@@ -414,7 +412,7 @@ int main(int argc, char* const argv[]) {
                             send_ack(new_fd, session_key, &count_s);
 
                             cout << "Logout: success" << endl << endl;
-                            cout << "modifica5" << endl;
+                            cout << "modifica6" << endl;
 
                             free(session_key);
                             free(plaintext);

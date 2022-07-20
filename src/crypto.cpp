@@ -679,28 +679,6 @@ unsigned char* symmetricEncryption(unsigned char *plaintext, int plaintext_len, 
     //if(1 != ret)
       //  handleErrors();
     
-   /*
-    do{
-        subControl(plaintext_len, outlen_tot);
-        if((plaintext_len - outlen_tot) < 16){
-            byte_to_enc= plaintext_len-outlen_tot;
-        }else{
-            byte_to_enc= 16;
-        }
-
-        ret = EVP_EncryptUpdate(ctx, ciphertext+outlen_tot, &len, plaintext+outlen_tot, byte_to_enc);
-        if(1 != ret)
-            handleErrors();
-        
-        sumControl(outlen_tot, len);
-        outlen_tot+=len;
-
-        subControl(plaintext_len, outlen_tot);
-
-    }//while(plaintext_len- outlen_tot!=0);
-    while( (plaintext_len - outlen_tot) >=  16);
-*/
-
     while(outlen_tot<=plaintext_len-16)
     {
         if(!EVP_EncryptUpdate(ctx, ciphertext+outlen_tot, &len, plaintext+outlen_tot, 16))
@@ -710,11 +688,11 @@ unsigned char* symmetricEncryption(unsigned char *plaintext, int plaintext_len, 
         outlen_tot+=len;
     }
 
-    EVP_EncryptUpdate(ctx, ciphertext+outlen_tot, &len, plaintext+outlen_tot, plaintext_len-outlen_tot);
-    
+    ret=EVP_EncryptUpdate(ctx, ciphertext+outlen_tot, &len, plaintext+outlen_tot, plaintext_len-outlen_tot);
+    if(1 != ret)
+        handleErrors();
 
     //ciphertext_len = len;
-    //ciphertext_len = outlen_tot +len;
     outlen_tot+=len;
 	ret = EVP_EncryptFinal(ctx, ciphertext + outlen_tot, &len);
     if(1 != ret)
@@ -808,26 +786,8 @@ unsigned char* symmetricDecription(unsigned char *recv_buffer, int bufferLen, in
 
     //if(!EVP_DecryptUpdate(ctx, buffer, &len, ciphertext, ciphertext_len))
       //  handleErrors();
-    
-   /*
-    do{
-        subControl(bufferLen, outlen_tot);
-        if((bufferLen - outlen_tot) <16)
-            byte_to_dec= bufferLen-outlen_tot;
-        else
-            byte_to_dec=   16;
 
-        if(!EVP_DecryptUpdate(ctx, buffer+outlen_tot, &len, ciphertext+outlen_tot, byte_to_dec))
-            handleErrors();
-
-        sumControl(outlen_tot, len);
-        outlen_tot+=len;
-
-        subControl(bufferLen, outlen_tot);
-    }//while(bufferLen- outlen_tot!=0);
-    while((bufferLen - outlen_tot) >=  16);*/
-
-    while(outlen_tot<=bufferLen-16)
+    while(outlen_tot<=ciphertext_len-16)
     {
         if(!EVP_DecryptUpdate(ctx, buffer+outlen_tot, &len, ciphertext+outlen_tot, 16))
             handleErrors();
@@ -836,12 +796,11 @@ unsigned char* symmetricDecription(unsigned char *recv_buffer, int bufferLen, in
         outlen_tot+=len;
     }
 
-    EVP_DecryptUpdate(ctx, buffer+outlen_tot, &len, ciphertext+outlen_tot, bufferLen-outlen_tot);
+    if(!EVP_DecryptUpdate(ctx, buffer+outlen_tot, &len, ciphertext+outlen_tot, ciphertext_len-outlen_tot))
+        handleErrors();
     
     outlen_tot+=len;
-    *plaintext_len = outlen_tot + len;
     //*plaintext_len = len;
-    //outlen_tot+=len;
     if(!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, 16, tag))
         handleErrors();
 
