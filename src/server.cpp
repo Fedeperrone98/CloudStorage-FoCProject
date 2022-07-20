@@ -442,6 +442,7 @@ int main(int argc, char* const argv[]) {
                                 perror("malloc(): ");
                                 exit(-1);
                             }
+                            //CONTROLLARE
                             //extract_data_from_array(dim_file_str, plaintext, constants::TYPE_CODE_SIZE+constants::DIM_FILENAME, size_dim);
                             extract_data_from_array(dim_file_str, plaintext, constants::TYPE_CODE_SIZE+constants::DIM_FILENAME, pt_len);
 
