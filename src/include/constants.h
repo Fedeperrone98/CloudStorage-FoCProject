@@ -10,6 +10,8 @@ namespace constants
     constexpr unsigned int DIM_FILENAME = 30;
     constexpr unsigned int TOT_USERS = 4;
 
+    constexpr unsigned int MAX_READ = 1000000;
+
     constexpr unsigned int DIM_PASSWORD = 30;
 
     constexpr unsigned int NONCE_SIZE = 16;

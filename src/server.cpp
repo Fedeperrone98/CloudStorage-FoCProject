@@ -412,7 +412,6 @@ int main(int argc, char* const argv[]) {
                             send_ack(new_fd, session_key, &count_s);
 
                             cout << "Logout: success" << endl << endl;
-                            cout << "modifica6" << endl;
 
                             free(session_key);
                             free(plaintext);

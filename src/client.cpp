@@ -487,8 +487,76 @@ int main(int argc, char *const argv[])
 
             send_int(sd, msg_send_len);
             send_obj(sd, msg_to_send, msg_send_len);
+            free(msg_to_send);
 
             cout << "Sended message: <IV | AAD | tag | upload_request | filename | size>" << endl;
+
+            // ricevo l'ack
+            msg_receive_len = receive_len(sd);
+            msg_to_receive= (unsigned char*)malloc(msg_receive_len);
+            if(!msg_to_receive){
+                perror("Error during malloc()");
+                exit(-1);
+            }
+            receive_obj(sd, msg_to_receive, msg_receive_len);
+
+            cout << "Received message <IV | AAD | tag | Acknowledgement_type>" << endl;
+
+            // decifro il messaggio
+            free(plaintext);
+            plaintext = symmetricDecription(msg_to_receive, msg_receive_len, &pt_len, session_key, &count_s);
+            
+            if(!strncmp((const char*)plaintext, constants::Acknowledgment, sizeof(constants::Acknowledgment)))
+            {
+                //leggo il contenuto del file
+                long long int dim_read=0;
+
+                while(dim_file - dim_read > constants::MAX_READ){
+
+                    free(plaintext);
+                    plaintext= (unsigned char*)malloc(constants::MAX_READ);
+                    if(!plaintext){
+                        perror("Error during malloc()");
+                        exit(-1);
+                    }
+                    ret= fread(plaintext, 1, constants::MAX_READ, clear_file+dim_read);
+                    if(ret<constants::MAX_READ){
+                        perror("Error while reading file");
+                        exit(1);
+                    }
+                    sumControl(dim_read, constants::MAX_READ);
+                    dim_read+=constants::MAX_READ;
+
+                    //mando il file un pezzo per volta
+                }
+
+                free(plaintext);
+                plaintext= (unsigned char*)malloc(dim_file - dim_read);
+                if(!plaintext){
+                    perror("Error during malloc()");
+                    exit(-1);
+                }
+                ret= fread(plaintext, 1, dim_file-dim_read, clear_file+dim_read);
+                if(ret<dim_file-dim_read){
+                    perror("Error while reading file");
+                    exit(1);
+                }
+
+                msg_to_send= symmetricEncryption(plaintext, dim_file-dim_read, session_key, &msg_send_len, &count_c);
+
+                send_int(sd, msg_send_len);
+                send_obj(sd, msg_to_send, msg_send_len);
+
+                /*cout << "ok" << endl;
+                cout << "plaintext:" << plaintext << endl;
+                cout << "dim_file:" << dim_file << endl;
+                cout << "dim read: " << dim_read << endl;
+                cout << "ret: " << ret << endl;*/
+
+            }else{
+                cout << "Upload request: unsuccess" << endl;
+                continue;
+            }
 
             break;
         
@@ -546,6 +614,11 @@ int main(int argc, char *const argv[])
 
             // ricevo l'ack
             msg_receive_len = receive_len(sd);
+            msg_to_receive= (unsigned char*)malloc(msg_receive_len);
+            if(!msg_to_receive){
+                perror("Error during malloc()");
+                exit(-1);
+            }
             receive_obj(sd, msg_to_receive, msg_receive_len);
 
             cout << "Received message <IV | AAD | tag | Acknowledgement_type>" << endl;
@@ -559,6 +632,7 @@ int main(int argc, char *const argv[])
                 free(session_key);
                 free(msg_to_send);
                 free(plaintext);
+                free(msg_to_receive);
                 close(sd);
                 return 0;
             }          
