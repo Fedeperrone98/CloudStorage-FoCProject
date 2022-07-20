@@ -720,6 +720,7 @@ unsigned char* symmetricEncryption(unsigned char *plaintext, int plaintext_len, 
     if(1 != ret)
         handleErrors();
 
+    ciphertext_len = outlen_tot +len;
 	sumControl(ciphertext_len, len);
     ciphertext_len += len;
 	ret = EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, 16, tag);
@@ -837,9 +838,10 @@ unsigned char* symmetricDecription(unsigned char *recv_buffer, int bufferLen, in
 
     EVP_DecryptUpdate(ctx, buffer+outlen_tot, &len, ciphertext+outlen_tot, bufferLen-outlen_tot);
     
-    //*plaintext_len = outlen_tot + len;
-    //*plaintext_len = len;
     outlen_tot+=len;
+    *plaintext_len = outlen_tot + len;
+    //*plaintext_len = len;
+    //outlen_tot+=len;
     if(!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, 16, tag))
         handleErrors();
 
