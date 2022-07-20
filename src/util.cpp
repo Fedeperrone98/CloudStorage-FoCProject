@@ -134,6 +134,12 @@ bool control_white_list(string str){
 void extract_data_from_array(unsigned char* dest, unsigned char* src, int start, int end){
 	int i,j;
 	if(start < 0 || end < 0 || start > end || src == NULL || dest == NULL){
+		cout << "start: " << start << endl;
+		cout << "end: " << end << endl;
+		if(src==NULL)
+			cout << "source" << endl;
+		if(dest == NULL)
+			cout << "dest" << endl;
 		perror("wrong parameters");
 		dest = NULL;
 		return;

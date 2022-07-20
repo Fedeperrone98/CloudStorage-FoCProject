@@ -432,7 +432,7 @@ int main(int argc, char* const argv[]) {
 
                             //estraggo il filename  
                             extract_data_from_array(filename, plaintext, constants::TYPE_CODE_SIZE, constants::DIM_FILENAME);
-
+                            
                             //estraggo il size
                             subControl(pt_len,constants::TYPE_CODE_SIZE );
                             subControl(pt_len - constants::TYPE_CODE_SIZE, constants::DIM_FILENAME);
@@ -442,10 +442,32 @@ int main(int argc, char* const argv[]) {
                                 perror("malloc(): ");
                                 exit(-1);
                             }
-                            extract_data_from_array(dim_file_str, plaintext, constants::TYPE_CODE_SIZE+constants::DIM_FILENAME, size_dim);
-                            dim_file = strtoll((const char*)dim_file_str, NULL, 10);
+                            //extract_data_from_array(dim_file_str, plaintext, constants::TYPE_CODE_SIZE+constants::DIM_FILENAME, size_dim);
+                            extract_data_from_array(dim_file_str, plaintext, constants::TYPE_CODE_SIZE+constants::DIM_FILENAME, pt_len);
 
+                            dim_file = strtoll((const char*)dim_file_str, NULL, 10);
+                            cout << "dim file str nuovo: " << dim_file << endl;
+
+                            //invio ack
                             send_ack(new_fd, session_key, &count_s);
+
+                            //aspetto di ricevere la dimensione del prossimo messaggio
+                            msg_receive_len = receive_len(new_fd);
+                            free(msg_to_receive);
+                            msg_to_receive= (unsigned char*)malloc(msg_receive_len);
+                            if(!msg_to_receive){
+                                perror("Error during malloc()");
+                                exit(-1);
+                            }
+                            //ricevo il messaggio di sessione
+                            receive_obj(new_fd, msg_to_receive, msg_receive_len);
+
+                            //decifro il messaggio ricevuto
+                            plaintext = symmetricDecription(msg_to_receive, msg_receive_len, &pt_len, session_key, &count_c);
+
+                            cout << "plaintext ricevuto: " << plaintext << endl;
+
+                        
 
                         }else if(command==constants::Download_request){
 

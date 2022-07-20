@@ -544,6 +544,8 @@ int main(int argc, char *const argv[])
 
                 msg_to_send= symmetricEncryption(plaintext, dim_file-dim_read, session_key, &msg_send_len, &count_c);
 
+                cout<<endl << "invio contenuto file " << endl;
+
                 send_int(sd, msg_send_len);
                 send_obj(sd, msg_to_send, msg_send_len);
 
