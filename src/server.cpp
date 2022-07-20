@@ -54,7 +54,7 @@ int main(int argc, char* const argv[]) {
         *charPointer = '\0';
 
     //estraggo chiave privata
-    EVP_PKEY * prvKey_s=readPrivateKey("server", password, "server");
+    //EVP_PKEY * prvKey_s=readPrivateKey("server", password, "server");
 
     //azzero i set dei descrittori
 	FD_ZERO(&master);
@@ -146,7 +146,7 @@ int main(int argc, char* const argv[]) {
                     cout << "Start the AUTHENTICATION PHASE..." << endl << endl;
 
                     //estraggo chiave privata
-                    //EVP_PKEY * prvKey_s=readPrivateKey("server", password, "server");
+                    EVP_PKEY * prvKey_s=readPrivateKey("server", password, "server");
 
                     cout<<"carico chiave privata .." << endl;
                     //**************** ricezione primo messaggio *****************
@@ -176,15 +176,12 @@ int main(int argc, char* const argv[]) {
                     unsigned char nonce_s[constants::NONCE_SIZE];
                     generateNonce(nonce_s);                    
 
-                    cout << "ok1" << endl;
 
                     sumControl(constants::NONCE_SIZE, cert_size);
 
                     // mando la dimensione del messaggio <Ns | certs>
                     size_t msg_len= constants::NONCE_SIZE + cert_size;
                     send_int(new_fd, msg_len);
-
-                    cout << "ok2" << endl;
 
                     // mando il vero messaggio
                     unsigned char msg[msg_len];
@@ -195,46 +192,27 @@ int main(int argc, char* const argv[]) {
                     cout << "Sended Certificate and nonce to the client" << endl;
 
 	                X509_free(cert_server);
-                    cout << "ok3" << endl;
 
                     //**************** ricezione terzo messaggio *****************
 
                     //aspetto di ricevere la lunghezza del prossimo messaggio
                     msg_receive_len=receive_len(new_fd);
-                    cout << "ok3.0" << endl;
 
                     //aspetto di ricevere la lunghezza della firma
                     int signature_len=receive_len(new_fd);
 
-                    //aspetto l'intero messaggio
-                    cout << "ok3.1" << endl;
-                    //cout << "msg_recive_len: " << msg_receive_len << endl;
-                    //cout << "msg_to_receive: " << msg_to_receive << endl;
-                    //ERRORE
-                    //if(msg_to_receive!=NULL)
-                       // free(msg_to_receive);
-
-                    //char msg_to_receive2[msg_receive_len];
-            
+                    //aspetto l'intero messaggio                  
                     msg_to_receive=(unsigned char*)malloc(msg_receive_len);
                     if(!msg_to_receive){
                         perror("Error during malloc()");
                         exit(-1);
                     }
                     
-                    cout << "ok4" << endl;
                     receive_obj(new_fd, msg_to_receive, msg_receive_len);
-                    cout << "ok5" << endl;
-
+                    
                     cout << "Received message: <EncKey | IV | Nc | Yc | sign>" << endl;
 
-                    //decifro il messaggio
-                    //if(plaintext!=NULL)
-                        //free(plaintext);
-                    plaintext=NULL;
                     plaintext=from_DigEnv_to_PlainText(msg_to_receive, msg_receive_len, &pt_len, prvKey_s);
-
-                    cout << "ok6.4" << endl;
 
                     //estraggo le singole parti dal plaintext <Nc | Yc | sign>
                     unsigned char nonce_c[constants::NONCE_SIZE];
@@ -381,7 +359,7 @@ int main(int argc, char* const argv[]) {
 
                     EVP_PKEY_free(DH_c);
                     EVP_PKEY_free(DH_prvKey_s);
-                    //EVP_PKEY_free(prvKey_s);
+                    EVP_PKEY_free(prvKey_s);
                     EVP_PKEY_free(pubKey_c);
 
                     free(msg_to_send);
@@ -436,16 +414,12 @@ int main(int argc, char* const argv[]) {
                             send_ack(new_fd, session_key, &count_s);
 
                             cout << "Logout: success" << endl << endl;
+                            cout << "modifica4" << endl;
 
                             free(session_key);
-                            session_key=NULL;
-                            //free(msg_to_send);
                             free(plaintext);
-                            plaintext=NULL;
                             free(type);
-                            type=NULL;
                             free(msg_to_receive);
-                            //msg_to_receive=NULL;
 
                             close(new_fd);
                             break;
