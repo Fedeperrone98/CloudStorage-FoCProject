@@ -30,7 +30,7 @@ int main(int argc, char* const argv[]) {
     unsigned char *msg_to_receive= NULL;
     int msg_receive_len;
 
-    unsigned char *plaintext;
+    unsigned char *plaintext=NULL;
     int pt_len;
 
     char* charPointer;
@@ -55,7 +55,6 @@ int main(int argc, char* const argv[]) {
 
     //estraggo chiave privata
     EVP_PKEY * prvKey_s=readPrivateKey("server", password, "server");
-
 
     //azzero i set dei descrittori
 	FD_ZERO(&master);
@@ -106,7 +105,6 @@ int main(int argc, char* const argv[]) {
     unsigned char* cert_buf = NULL;
     //serializzazione certificato
     unsigned int cert_size = i2d_X509(cert_server, &cert_buf);
-
     if(cert_size < 0) {
         perror("certificate size error");
         exit(-1);
@@ -192,7 +190,6 @@ int main(int argc, char* const argv[]) {
 
                     cout << "Sended Certificate and nonce to the client" << endl;
 
-                    //OPENSSL_free(cert_buf);
 	                X509_free(cert_server);
                     cout << "ok3" << endl;
 
@@ -210,8 +207,8 @@ int main(int argc, char* const argv[]) {
                     //cout << "msg_recive_len: " << msg_receive_len << endl;
                     //cout << "msg_to_receive: " << msg_to_receive << endl;
                     //ERRORE
-                    if(msg_to_receive!=NULL)
-                        free(msg_to_receive);
+                    //if(msg_to_receive!=NULL)
+                       // free(msg_to_receive);
                     msg_to_receive=(unsigned char*)malloc(msg_receive_len);
                     if(!msg_to_receive){
                         perror("Error during malloc()");
@@ -224,7 +221,11 @@ int main(int argc, char* const argv[]) {
                     cout << "Received message: <EncKey | IV | Nc | Yc | sign>" << endl;
 
                     //decifro il messaggio
+                    //if(plaintext!=NULL)
+                        //free(plaintext);
                     plaintext=from_DigEnv_to_PlainText(msg_to_receive, msg_receive_len, &pt_len, prvKey_s);
+
+                    cout << "ok6" << endl;
 
                     //estraggo le singole parti dal plaintext <Nc | Yc | sign>
                     unsigned char nonce_c[constants::NONCE_SIZE];
@@ -393,6 +394,11 @@ int main(int argc, char* const argv[]) {
                         //ricevo la dimensione del messaggio di sessione
                         msg_receive_len = receive_len(new_fd);
 
+                        msg_to_receive= (unsigned char*)malloc(msg_receive_len);
+                        if(!msg_to_receive){
+                            perror("Error during malloc()");
+                            exit(-1);
+                        }
                         //ricevo il messaggio di sessione
                         receive_obj(new_fd, msg_to_receive, msg_receive_len);
 
@@ -423,9 +429,14 @@ int main(int argc, char* const argv[]) {
                             cout << "Logout: success" << endl << endl;
 
                             free(session_key);
+                            session_key=NULL;
                             //free(msg_to_send);
                             free(plaintext);
+                            plaintext=NULL;
                             free(type);
+                            type=NULL;
+                            free(msg_to_receive);
+                            //msg_to_receive=NULL;
 
                             close(new_fd);
                             break;
