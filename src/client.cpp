@@ -192,6 +192,7 @@ int main(int argc, char *const argv[])
         perror("server certificate not valid \n");
         exit(-1);
     }
+    cout << "received valid cert" << endl;
 
     //********** invio terzo messaggio **********
 

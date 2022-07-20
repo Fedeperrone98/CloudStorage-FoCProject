@@ -145,6 +145,10 @@ int main(int argc, char* const argv[]) {
                     cout << "Received a connection request" << endl << endl;
                     cout << "Start the AUTHENTICATION PHASE..." << endl << endl;
 
+                    //estraggo chiave privata
+                    //EVP_PKEY * prvKey_s=readPrivateKey("server", password, "server");
+
+                    cout<<"carico chiave privata .." << endl;
                     //**************** ricezione primo messaggio *****************
 
                     char username[constants::DIM_USERNAME];
@@ -209,11 +213,15 @@ int main(int argc, char* const argv[]) {
                     //ERRORE
                     //if(msg_to_receive!=NULL)
                        // free(msg_to_receive);
+
+                    //char msg_to_receive2[msg_receive_len];
+            
                     msg_to_receive=(unsigned char*)malloc(msg_receive_len);
                     if(!msg_to_receive){
                         perror("Error during malloc()");
                         exit(-1);
                     }
+                    
                     cout << "ok4" << endl;
                     receive_obj(new_fd, msg_to_receive, msg_receive_len);
                     cout << "ok5" << endl;
@@ -223,9 +231,10 @@ int main(int argc, char* const argv[]) {
                     //decifro il messaggio
                     //if(plaintext!=NULL)
                         //free(plaintext);
+                    plaintext=NULL;
                     plaintext=from_DigEnv_to_PlainText(msg_to_receive, msg_receive_len, &pt_len, prvKey_s);
 
-                    cout << "ok6" << endl;
+                    cout << "ok6.4" << endl;
 
                     //estraggo le singole parti dal plaintext <Nc | Yc | sign>
                     unsigned char nonce_c[constants::NONCE_SIZE];
@@ -372,7 +381,7 @@ int main(int argc, char* const argv[]) {
 
                     EVP_PKEY_free(DH_c);
                     EVP_PKEY_free(DH_prvKey_s);
-                    EVP_PKEY_free(prvKey_s);
+                    //EVP_PKEY_free(prvKey_s);
                     EVP_PKEY_free(pubKey_c);
 
                     free(msg_to_send);

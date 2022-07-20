@@ -164,13 +164,17 @@ EVP_PKEY* readPrivateKey(string username, string pwd, string who){
         path = constants::DIR_CLIENTS + username + "/" + username + constants::SUFFIX_PRVKEY;
     }
 
+    cout << "dentro lettura chiave" << endl;
     FILE* file = fopen(path.c_str(), "r");
     if(!file){
         perror("cannot open the user prvKey file");
         exit(-1);
     }
 
+    cout << "leggo file" << endl;
+    cout << "pass: " << pwd << endl;
     prvkey= PEM_read_PrivateKey(file, NULL, NULL, (char*)pwd.c_str());
+    cout << "letto Pem" << endl;
     if(!prvkey){
         fclose(file);
         handleErrors();
@@ -495,10 +499,15 @@ unsigned char* from_DigEnv_to_PlainText(unsigned char* message, int messageLen, 
    	int ndtot = 0; 	// total decrypted bytes
 	EVP_CIPHER_CTX* ctx;
 
+    cout << "inizio funzione" << endl;
+
 	const EVP_CIPHER* cipher = EVP_aes_128_cbc(); 
 	encrypted_key_len = EVP_PKEY_size(prvKey);
+
 	iv_len = EVP_CIPHER_iv_length(cipher);
 	sumControl(encrypted_key_len, iv_len);
+
+    cout << "dopo assegnazioni" << endl;
 
 	//check for correct format of the encrypted file
 	if(messageLen < encrypted_key_len + iv_len)
@@ -506,6 +515,8 @@ unsigned char* from_DigEnv_to_PlainText(unsigned char* message, int messageLen, 
         perror("Error: invalid message");
         exit(-1);
     }
+
+    cout << "inizio malloc" << endl;
 
 	encrypted_key = (unsigned char*) malloc(encrypted_key_len);
 	iv = (unsigned char*) malloc(iv_len);
@@ -522,7 +533,8 @@ unsigned char* from_DigEnv_to_PlainText(unsigned char* message, int messageLen, 
 	extract_data_from_array(encrypted_key, message, 0, encrypted_key_len);
 	extract_data_from_array(iv, message, encrypted_key_len, encrypted_key_len + iv_len);
 	extract_data_from_array(cpt, message, encrypted_key_len + iv_len, messageLen);
-	
+	cout << "dentro funzione" << endl;
+
     //decryption
 	ctx = EVP_CIPHER_CTX_new();
 	if(ctx == NULL)
@@ -550,6 +562,7 @@ unsigned char* from_DigEnv_to_PlainText(unsigned char* message, int messageLen, 
 	free(iv);
 	free(cpt);
 
+    cout << "finita funzione" << endl;
 	return pt;	
 }
 
@@ -673,11 +686,11 @@ unsigned char* symmetricEncryption(unsigned char *plaintext, int plaintext_len, 
     if(1 != ret)
         handleErrors();
 
-	/*ret = EVP_EncryptUpdate(ctx, ciphertext, &len, plaintext, plaintext_len);
+	ret = EVP_EncryptUpdate(ctx, ciphertext, &len, plaintext, plaintext_len);
     if(1 != ret)
         handleErrors();
-    */
-
+    
+   /*
     do{
         subControl(plaintext_len, outlen_tot);
         if((plaintext_len - outlen_tot) < 16){
@@ -697,9 +710,9 @@ unsigned char* symmetricEncryption(unsigned char *plaintext, int plaintext_len, 
 
     }while(plaintext_len- outlen_tot!=0);
     //while( (plaintext_len - outlen_tot) >=  EVP_CIPHER_block_size(cipher));
-
-    //ciphertext_len = len;
-    ciphertext_len = outlen_tot;
+*/
+    ciphertext_len = len;
+    //ciphertext_len = outlen_tot;
 	ret = EVP_EncryptFinal(ctx, ciphertext + outlen_tot, &len);
     if(1 != ret)
         handleErrors();
@@ -789,10 +802,10 @@ unsigned char* symmetricDecription(unsigned char *recv_buffer, int bufferLen, in
     if(!EVP_DecryptUpdate(ctx, NULL, &len, aad, constants::AAD_LEN))
         handleErrors();
 
-    /*if(!EVP_DecryptUpdate(ctx, buffer, &len, ciphertext, ciphertext_len))
+    if(!EVP_DecryptUpdate(ctx, buffer, &len, ciphertext, ciphertext_len))
         handleErrors();
-    */
-
+    
+   /*
     do{
         subControl(bufferLen, outlen_tot);
         if((bufferLen - outlen_tot) <16)
@@ -809,9 +822,9 @@ unsigned char* symmetricDecription(unsigned char *recv_buffer, int bufferLen, in
         subControl(bufferLen, outlen_tot);
     }while(bufferLen- outlen_tot!=0);
     //while((bufferLen - outlen_tot) >=  EVP_CIPHER_block_size(cipher));
-
-    *plaintext_len = outlen_tot;
-    //*plaintext_len = len;
+    */
+    //*plaintext_len = outlen_tot;
+    *plaintext_len = len;
     if(!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, 16, tag))
         handleErrors();
 
