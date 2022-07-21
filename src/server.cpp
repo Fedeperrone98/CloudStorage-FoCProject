@@ -371,7 +371,7 @@ int main(int argc, char* const argv[]) {
                     int count_s=0;
                     int count_c=0;
 
-                    unsigned char filename[constants::DIM_FILENAME];
+                    char filename[constants::DIM_FILENAME];
                     long long int dim_file;
                     unsigned char * dim_file_str;
 
@@ -431,7 +431,7 @@ int main(int argc, char* const argv[]) {
                             // messaggio di richiesta: <IV | AAD | tag | upload_request | filename | size>
 
                             //estraggo il filename  
-                            extract_data_from_array(filename, plaintext, constants::TYPE_CODE_SIZE, constants::DIM_FILENAME);
+                            extract_data_from_array((unsigned char*)filename, plaintext, constants::TYPE_CODE_SIZE, constants::DIM_FILENAME);
                             
                             //estraggo il size
                             subControl(pt_len,constants::TYPE_CODE_SIZE );
@@ -460,14 +460,49 @@ int main(int argc, char* const argv[]) {
                                 perror("Error during malloc()");
                                 exit(-1);
                             }
-                            //ricevo il messaggio di sessione
+
+                            //creo nuovo file
+                            string new_file_name=(string)filename;
+                            string path=(string)constants::DIR_SERVER+username+"/"+new_file_name;
+                            FILE* clear_file = fopen(path.c_str(), "ab");
+                            if(!clear_file) { 
+                                perror("Error: cannot open file");
+                                exit(1); 
+                            }
+                            //ciclo per ricevere tanti messaggi in base alla dimensione del file
+                            int dim_read=0;
+                            while(dim_file - dim_read > constants::MAX_READ)
+                            {
+                                //ricevo il messaggio di sessione
+                                receive_obj(new_fd, msg_to_receive, msg_receive_len);
+
+                                //decifro il messaggio ricevuto
+                                free(plaintext);
+                                plaintext = symmetricDecription(msg_to_receive, msg_receive_len, &pt_len, session_key, &count_c);
+                                sumControl(dim_read, pt_len);
+                                dim_read+=pt_len;
+
+                                cout << "plaintext ricevuto: " << plaintext << endl;
+                                ret = fwrite(plaintext, 1, pt_len, clear_file);
+                                if(ret < pt_len) { 
+                                    perror("Error while writing the file"); 
+                                    exit(1); 
+                                }
+                            }
+
+                            //leggo l'ultimo pezzo
                             receive_obj(new_fd, msg_to_receive, msg_receive_len);
 
                             //decifro il messaggio ricevuto
+                            free(plaintext);
                             plaintext = symmetricDecription(msg_to_receive, msg_receive_len, &pt_len, session_key, &count_c);
 
                             cout << "plaintext ricevuto: " << plaintext << endl;
-
+                            ret = fwrite(plaintext, 1, pt_len, clear_file);
+                            if(ret < pt_len) { 
+                                perror("Error while writing the file"); 
+                                exit(1); 
+                            }
                         
 
                         }else if(command==constants::Download_request){
