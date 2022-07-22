@@ -464,11 +464,11 @@ int main(int argc, char* const argv[]) {
                                 
                                 //invio nack
                                 send_nack(new_fd, session_key, &count_s);
-                                cout << "Upload: success" << endl << endl;
+                                cout << "Upload: unsuccess" << endl << endl;
                                 continue;
                             }
 
-                            FILE* clear_file = fopen(path.c_str(), "w");
+                            FILE* clear_file = fopen(path.c_str(), "a");
                             if(!clear_file) { 
                                 perror("Error: cannot open file");
                                 exit(1); 
@@ -528,6 +528,10 @@ int main(int argc, char* const argv[]) {
                             }
 
                             cout << "Upload: success" << endl << endl;
+
+                            free(plaintext);
+                            free(type);
+                            free(msg_to_receive);
 
                         }else if(command==constants::Download_request){
 

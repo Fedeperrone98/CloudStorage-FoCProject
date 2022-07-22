@@ -687,7 +687,6 @@ unsigned char* symmetricEncryption(unsigned char *plaintext, int plaintext_len, 
         sumControl(outlen_tot, len);
         outlen_tot+=len;
     }
-
     ret=EVP_EncryptUpdate(ctx, ciphertext+outlen_tot, &len, plaintext+outlen_tot, plaintext_len-outlen_tot);
     if(1 != ret)
         handleErrors();

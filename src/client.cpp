@@ -517,18 +517,16 @@ int main(int argc, char *const argv[])
                         perror("Error during malloc()");
                         exit(-1);
                     }
-                    ret= fread(plaintext, 1, constants::MAX_READ, clear_file+dim_read);
+                    ret= fread(plaintext, 1, constants::MAX_READ, clear_file);
                     if(ret<constants::MAX_READ){
                         perror("Error while reading file");
                         exit(1);
                     }
-                    sumControl(dim_read, constants::MAX_READ);
-                    dim_read+=constants::MAX_READ;
-
+                    
                     //mando il file un pezzo per volta
                     // messaggio: <IV | AAD | tag | file_content>
 
-                    msg_to_send= symmetricEncryption(plaintext, dim_file-dim_read, session_key, &msg_send_len, &count_c);
+                    msg_to_send= symmetricEncryption(plaintext, constants::MAX_READ, session_key, &msg_send_len, &count_c);
 
                     send_int(sd, msg_send_len);
                     send_obj(sd, msg_to_send, msg_send_len);
@@ -536,6 +534,9 @@ int main(int argc, char *const argv[])
                     cout << "Sendend message <IV | AAD | tag | file content>" << endl;
 
                     free(msg_to_send);
+
+                    sumControl(dim_read, constants::MAX_READ);
+                    dim_read+=constants::MAX_READ;
 
                 }
 
@@ -545,7 +546,7 @@ int main(int argc, char *const argv[])
                     perror("Error during malloc()");
                     exit(-1);
                 }
-                ret= fread(plaintext, 1, dim_file-dim_read, clear_file+dim_read);
+                ret= fread(plaintext, 1, dim_file-dim_read, clear_file);
                 if(ret<dim_file-dim_read){
                     perror("Error while reading file");
                     exit(1);
@@ -567,6 +568,9 @@ int main(int argc, char *const argv[])
                 cout << "dim_file:" << dim_file << endl;
                 cout << "dim read: " << dim_read << endl;
                 cout << "ret: " << ret << endl;*/
+
+                free(plaintext);
+                free(msg_to_receive);
 
             }else{
                 cout << "Received message <IV | AAD | tag | Not_Acknowledgement_type>" << endl;
