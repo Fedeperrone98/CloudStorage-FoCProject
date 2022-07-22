@@ -442,15 +442,69 @@ int main(int argc, char* const argv[]) {
                                 perror("malloc(): ");
                                 exit(-1);
                             }
-                            //CONTROLLARE
-                            //extract_data_from_array(dim_file_str, plaintext, constants::TYPE_CODE_SIZE+constants::DIM_FILENAME, size_dim);
                             extract_data_from_array(dim_file_str, plaintext, constants::TYPE_CODE_SIZE+constants::DIM_FILENAME, pt_len);
 
                             dim_file = strtoll((const char*)dim_file_str, NULL, 10);
-                            cout << "dim file str nuovo: " << dim_file << endl;
+                            
+                            //creo nuovo file
+                            string new_file_name=(string)filename;
+                            string path=(string)constants::DIR_SERVER+username+"/"+new_file_name;
+                            
+                            //prima di fare la fopen bisogna controllare che il file non esista già
+                            //se esiste già non deve esserre mandato l'ack, ma un nack
+                            const auto existingDir = processWorkingDir / path;
 
-                            //invio ack
-                            send_ack(new_fd, session_key, &count_s);
+                            //if(!fs::is_directory(path)){
+                            if(access(path.c_str(), 0)){
+
+                                //invio ack
+                                send_ack(new_fd, session_key, &count_s);
+                                
+                            }else{
+                                
+                                //invio nack
+                                send_nack(new_fd, session_key, &count_s);
+                                cout << "Upload: success" << endl << endl;
+                                continue;
+                            }
+
+                            FILE* clear_file = fopen(path.c_str(), "w");
+                            if(!clear_file) { 
+                                perror("Error: cannot open file");
+                                exit(1); 
+                            }
+                            
+                            //ciclo per ricevere tanti messaggi in base alla dimensione del file
+                            int dim_write=0;
+                            while(dim_file - dim_write > constants::MAX_READ)
+                            {
+                                //aspetto di ricevere la dimensione del prossimo messaggio
+                                msg_receive_len = receive_len(new_fd);
+                                free(msg_to_receive);
+                                msg_to_receive= (unsigned char*)malloc(msg_receive_len);
+                                if(!msg_to_receive){
+                                    perror("Error during malloc()");
+                                    exit(-1);
+                                }
+
+                                //ricevo il messaggio di sessione
+                                receive_obj(new_fd, msg_to_receive, msg_receive_len);
+                                cout << "Received message <IV | AAD | tag | file content>" << endl;
+
+                                //decifro il messaggio ricevuto
+                                free(plaintext);
+                                plaintext = symmetricDecription(msg_to_receive, msg_receive_len, &pt_len, session_key, &count_c);
+                                sumControl(dim_write, pt_len);
+                                dim_write+=pt_len;
+
+                                ret = fwrite(plaintext, 1, pt_len, clear_file);
+                                if(ret < pt_len) { 
+                                    perror("Error while writing the file"); 
+                                    exit(1); 
+                                }
+                            }
+
+                            //leggo l'ultimo pezzo
 
                             //aspetto di ricevere la dimensione del prossimo messaggio
                             msg_receive_len = receive_len(new_fd);
@@ -460,50 +514,20 @@ int main(int argc, char* const argv[]) {
                                 perror("Error during malloc()");
                                 exit(-1);
                             }
-
-                            //creo nuovo file
-                            string new_file_name=(string)filename;
-                            string path=(string)constants::DIR_SERVER+username+"/"+new_file_name;
-                            FILE* clear_file = fopen(path.c_str(), "ab");
-                            if(!clear_file) { 
-                                perror("Error: cannot open file");
-                                exit(1); 
-                            }
-                            //ciclo per ricevere tanti messaggi in base alla dimensione del file
-                            int dim_read=0;
-                            while(dim_file - dim_read > constants::MAX_READ)
-                            {
-                                //ricevo il messaggio di sessione
-                                receive_obj(new_fd, msg_to_receive, msg_receive_len);
-
-                                //decifro il messaggio ricevuto
-                                free(plaintext);
-                                plaintext = symmetricDecription(msg_to_receive, msg_receive_len, &pt_len, session_key, &count_c);
-                                sumControl(dim_read, pt_len);
-                                dim_read+=pt_len;
-
-                                cout << "plaintext ricevuto: " << plaintext << endl;
-                                ret = fwrite(plaintext, 1, pt_len, clear_file);
-                                if(ret < pt_len) { 
-                                    perror("Error while writing the file"); 
-                                    exit(1); 
-                                }
-                            }
-
-                            //leggo l'ultimo pezzo
                             receive_obj(new_fd, msg_to_receive, msg_receive_len);
+                            cout << "Received message <IV | AAD | tag | file content>" << endl;
 
                             //decifro il messaggio ricevuto
                             free(plaintext);
                             plaintext = symmetricDecription(msg_to_receive, msg_receive_len, &pt_len, session_key, &count_c);
 
-                            cout << "plaintext ricevuto: " << plaintext << endl;
                             ret = fwrite(plaintext, 1, pt_len, clear_file);
                             if(ret < pt_len) { 
                                 perror("Error while writing the file"); 
                                 exit(1); 
                             }
-                        
+
+                            cout << "Upload: success" << endl << endl;
 
                         }else if(command==constants::Download_request){
 

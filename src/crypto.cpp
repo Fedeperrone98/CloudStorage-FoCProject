@@ -850,3 +850,20 @@ void send_ack( int sd, unsigned char * session_key, int *count){
 
 }
 
+void send_nack( int sd, unsigned char * session_key, int *count){
+	int msg_send_len;
+	//mando il messaggio di ack: <IV | AAD | tag | ack>
+	unsigned char *msg_to_send = symmetricEncryption((unsigned char*)constants::Not_acknowledgment, constants::TYPE_CODE_SIZE, session_key, &msg_send_len, count);
+	
+	//mando la dimesione del messaggio
+	send_int(sd, msg_send_len);
+
+	//mando il messaggio
+	send_obj(sd, msg_to_send, msg_send_len);
+
+	cout  << "Sended message <IV | AAD | tag | Not_Acknowledgement_type>" << endl;
+
+	free(msg_to_send);
+
+}
+

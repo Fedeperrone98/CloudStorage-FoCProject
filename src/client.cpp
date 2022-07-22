@@ -448,10 +448,8 @@ int main(int argc, char *const argv[])
                 rett = control_white_list(filename);
             }
             path = (string)constants::DIR_CLIENTS + (string)username + "/" + filename;
-            cout <<  "path:" << path << endl;
             canon_file_name = canonicalization(path);
-            cout << "canon_file: " << canon_file_name << endl;
-        
+            
             //apro il file da caricare
             clear_file= fopen(canon_file_name.c_str(), "rb");
             if(!clear_file){
@@ -500,14 +498,14 @@ int main(int argc, char *const argv[])
             }
             receive_obj(sd, msg_to_receive, msg_receive_len);
 
-            cout << "Received message <IV | AAD | tag | Acknowledgement_type>" << endl;
-
             // decifro il messaggio
             free(plaintext);
             plaintext = symmetricDecription(msg_to_receive, msg_receive_len, &pt_len, session_key, &count_s);
             
             if(!strncmp((const char*)plaintext, constants::Acknowledgment, sizeof(constants::Acknowledgment)))
             {
+                cout << "Received message <IV | AAD | tag | Acknowledgement_type>" << endl;
+
                 //leggo il contenuto del file
                 long long int dim_read=0;
 
@@ -528,6 +526,17 @@ int main(int argc, char *const argv[])
                     dim_read+=constants::MAX_READ;
 
                     //mando il file un pezzo per volta
+                    // messaggio: <IV | AAD | tag | file_content>
+
+                    msg_to_send= symmetricEncryption(plaintext, dim_file-dim_read, session_key, &msg_send_len, &count_c);
+
+                    send_int(sd, msg_send_len);
+                    send_obj(sd, msg_to_send, msg_send_len);
+
+                    cout << "Sendend message <IV | AAD | tag | file content>" << endl;
+
+                    free(msg_to_send);
+
                 }
 
                 free(plaintext);
@@ -542,12 +551,16 @@ int main(int argc, char *const argv[])
                     exit(1);
                 }
 
-                msg_to_send= symmetricEncryption(plaintext, dim_file-dim_read, session_key, &msg_send_len, &count_c);
+                // messaggio: <IV | AAD | tag | file_content>
 
-                cout<<endl << "invio contenuto file " << endl;
+                msg_to_send= symmetricEncryption(plaintext, dim_file-dim_read, session_key, &msg_send_len, &count_c);
 
                 send_int(sd, msg_send_len);
                 send_obj(sd, msg_to_send, msg_send_len);
+                free(msg_to_send);
+
+                cout << "Sendend message <IV | AAD | tag | file content>" << endl;
+                cout << "Upload request: success" << endl << endl;
 
                 /*cout << "ok" << endl;
                 cout << "plaintext:" << plaintext << endl;
@@ -556,7 +569,8 @@ int main(int argc, char *const argv[])
                 cout << "ret: " << ret << endl;*/
 
             }else{
-                cout << "Upload request: unsuccess" << endl;
+                cout << "Received message <IV | AAD | tag | Not_Acknowledgement_type>" << endl;
+                cout << "Upload request: unsuccess" << endl << endl;
                 continue;
             }
 
