@@ -41,7 +41,6 @@ namespace constants
     constexpr const char* Upload_request = "upl";
     constexpr const char* Acknowledgment = "ack";
     constexpr const char* Not_acknowledgment = "not";
-    constexpr const char* File_content = "con";
     constexpr const char* Download_request = "dow";
     constexpr const char* Size = "siz";
     constexpr const char* Delete_request = "del";
