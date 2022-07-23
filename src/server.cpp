@@ -452,9 +452,7 @@ int main(int argc, char* const argv[]) {
                             
                             //prima di fare la fopen bisogna controllare che il file non esista già
                             //se esiste già non deve esserre mandato l'ack, ma un nack
-                            const auto existingDir = processWorkingDir / path;
-
-                            //if(!fs::is_directory(path)){
+                            
                             if(access(path.c_str(), 0)){
 
                                 //invio ack
@@ -539,6 +537,14 @@ int main(int argc, char* const argv[]) {
                             //          DOWNLOAD
                             //******************************************************************************
                             cout << endl << "Download request..." << endl;
+
+                            // messaggio di richiesta: <IV | AAD | tag | download_request | filename >
+
+                            //estraggo il filename  
+                            extract_data_from_array((unsigned char*)filename, plaintext, constants::TYPE_CODE_SIZE, constants::DIM_FILENAME);
+
+                            //controllo che il file esista e faccio la canonicalizzazione
+                            
 
                         }else if(command==constants::Delete_request){
 

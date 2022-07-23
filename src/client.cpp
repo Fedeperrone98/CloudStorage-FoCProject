@@ -407,8 +407,7 @@ int main(int argc, char *const argv[])
         cin >> operation;
         while ('\n' != getchar());
         
-        if(array!=NULL)
-            free(array);
+        free(array);
 
         switch (operation)
         {
@@ -416,7 +415,7 @@ int main(int argc, char *const argv[])
             //******************************************************************************
             //          UPLOAD
             //******************************************************************************
-            //chiedo il file da criptare
+            //chiedo il file da caricare
             cout << endl << "Please, type the file to upload: " << endl;
             memset(filename, 0, constants::DIM_FILENAME);
             if (!fgets(filename, constants::DIM_FILENAME, stdin))
@@ -563,18 +562,16 @@ int main(int argc, char *const argv[])
                 cout << "Sendend message <IV | AAD | tag | file content>" << endl;
                 cout << "Upload request: success" << endl << endl;
 
-                /*cout << "ok" << endl;
-                cout << "plaintext:" << plaintext << endl;
-                cout << "dim_file:" << dim_file << endl;
-                cout << "dim read: " << dim_read << endl;
-                cout << "ret: " << ret << endl;*/
-
                 free(plaintext);
                 free(msg_to_receive);
 
             }else{
                 cout << "Received message <IV | AAD | tag | Not_Acknowledgement_type>" << endl;
                 cout << "Upload request: unsuccess" << endl << endl;
+
+                free(plaintext);
+                free(msg_to_receive);
+
                 continue;
             }
 
@@ -584,6 +581,65 @@ int main(int argc, char *const argv[])
             //******************************************************************************
             //          DOWNLOAD
             //******************************************************************************
+
+            //chiedo il file da caricare
+            cout << endl << "Please, type the file to download: " << endl;
+            memset(filename, 0, constants::DIM_FILENAME);
+            if (!fgets(filename, constants::DIM_FILENAME, stdin))
+            {
+                perror("Error during the reading from stdin\n");
+                exit(-1);
+            }
+            charPointer = strchr(filename, '\n');
+            if (charPointer)
+                *charPointer = '\0';
+            
+            // controllo che il filename non contenga caratteri speciali
+            rett = control_white_list(filename);
+            while (!rett)
+            {
+                cout << "Filename not valid" << endl;
+                cout << "Please, insert a valid filename:" << endl;
+                memset(filename, 0, constants::DIM_FILENAME);
+                if (!fgets(filename, constants::DIM_FILENAME, stdin))
+                {
+                    perror("Error during the reading from stdin\n");
+                    exit(-1);
+                }
+                charPointer = strchr(filename, '\n');
+                if (charPointer)
+                    *charPointer = '\0';
+
+                // controllo che lo username non contenga caratteri speciali
+                rett = control_white_list(filename);
+            }
+
+            // messaggio di richiesta: <IV | AAD | tag | download_request | filename >
+            array=(unsigned char*)malloc(constants::TYPE_CODE_SIZE);
+            if(array == NULL){
+                perror("Error during malloc()\n");
+                exit(-1);
+            }
+            memcpy(array, constants::Download_request, constants::TYPE_CODE_SIZE);
+
+            sumControl(constants::TYPE_CODE_SIZE, sizeof(filename) );
+            pt_len = constants::TYPE_CODE_SIZE + sizeof(filename) ;
+            plaintext = (unsigned char *)malloc(pt_len);
+            if (!plaintext)
+            {
+                perror("Error during malloc()");
+                exit(-1);
+            }
+            memcpy(plaintext, array, constants::TYPE_CODE_SIZE);
+            concatElements(plaintext, (unsigned char*)filename, constants::TYPE_CODE_SIZE, sizeof(filename));
+
+            msg_to_send= symmetricEncryption(plaintext, pt_len, session_key, &msg_send_len, &count_c);
+
+            send_int(sd, msg_send_len);
+            send_obj(sd, msg_to_send, msg_send_len);
+            free(msg_to_send);
+
+            cout << "Sended message: <IV | AAD | tag | download_request | filename >" << endl;            
 
             break;
 
