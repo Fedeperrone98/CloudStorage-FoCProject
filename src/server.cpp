@@ -398,27 +398,7 @@ int main(int argc, char* const argv[]) {
                         extract_data_from_array(type, plaintext, 0, constants::TYPE_CODE_SIZE);
                         string command=(char*)type;
                         
-                        if(command==constants::Logout_request)
-                        {
-                            //******************************************************************************
-                            //          LOGOUT
-                            //******************************************************************************
-                            
-                            cout << endl << "Logout request..." << endl;
-
-                            send_ack(new_fd, session_key, &count_s);
-
-                            cout << "Logout: success" << endl << endl;
-
-                            free(session_key);
-                            free(plaintext);
-                            free(type);
-                            free(msg_to_receive);
-
-                            close(new_fd);
-                            break;
-
-                        }else if(command==constants::Upload_request){
+                        if(command==constants::Upload_request){
 
                             //******************************************************************************
                             //          UPLOAD
@@ -837,6 +817,26 @@ int main(int argc, char* const argv[]) {
                                 continue;
 
                             }                            
+
+                        }else if(command==constants::Logout_request)
+                        {
+                            //******************************************************************************
+                            //          LOGOUT
+                            //******************************************************************************
+                            
+                            cout << endl << "Logout request..." << endl;
+
+                            send_ack(new_fd, session_key, &count_s);
+
+                            cout << "Logout: success" << endl << endl;
+
+                            free(session_key);
+                            free(plaintext);
+                            free(type);
+                            free(msg_to_receive);
+
+                            close(new_fd);
+                            break;
 
                         }else {
 
