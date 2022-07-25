@@ -865,7 +865,6 @@ int main(int argc, char *const argv[])
                     if (charPointer)
                         *charPointer = '\0';
 
-                    cout << "resp: " << resp << endl;
                     if(!strcmp(resp, "Yes")){
                         rett=true;
                         send_ack(sd,session_key, &count_c);
@@ -957,10 +956,10 @@ int main(int argc, char *const argv[])
             free(plaintext);
             plaintext = symmetricDecription(msg_to_receive, msg_receive_len, &pt_len, session_key, &count_s); 
             
-            
             if(!strncmp((const char*)plaintext, constants::List_file, sizeof(constants::List_file))){
                 string list;
                 extract_data_from_array((unsigned char*)list.c_str(), plaintext, constants::TYPE_CODE_SIZE, pt_len);
+                
                 cout << endl << "List:" << endl;
                 char * array_list;
                 array_list=strtok((char*)list.c_str(), ",");

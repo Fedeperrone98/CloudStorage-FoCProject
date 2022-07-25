@@ -739,8 +739,6 @@ int main(int argc, char* const argv[]) {
                                 list.append(","+fs::path(file).filename().string());
                             }
 
-                            cout << "list: " << list<< endl;
-
                             type=(unsigned char*)malloc(constants::TYPE_CODE_SIZE);
                             if(type == NULL){
                                 perror("Error during malloc()\n");
@@ -748,8 +746,8 @@ int main(int argc, char* const argv[]) {
                             }
                             memcpy(type, constants::List_file, constants::TYPE_CODE_SIZE);
 
-                            sumControl(constants::TYPE_CODE_SIZE, sizeof(list) );
-                            pt_len = constants::TYPE_CODE_SIZE + sizeof(list) ;
+                            sumControl(constants::TYPE_CODE_SIZE, list.size() );
+                            pt_len = constants::TYPE_CODE_SIZE + list.size() ;
                             plaintext = (unsigned char *)malloc(pt_len);
                             if (!plaintext)
                             {
@@ -757,8 +755,8 @@ int main(int argc, char* const argv[]) {
                                 exit(-1);
                             }
                             memcpy(plaintext, type, constants::TYPE_CODE_SIZE);
-                            concatElements(plaintext, (unsigned char*)list.c_str(), constants::TYPE_CODE_SIZE, sizeof(list));
-
+                            concatElements(plaintext, (unsigned char*)list.c_str(), constants::TYPE_CODE_SIZE, list.size());
+                            
                             msg_to_send= symmetricEncryption(plaintext, pt_len, session_key, &msg_send_len, &count_s);
 
                             send_int(new_fd, msg_send_len);
