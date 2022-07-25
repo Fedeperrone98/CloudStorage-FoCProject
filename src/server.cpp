@@ -53,9 +53,6 @@ int main(int argc, char* const argv[]) {
     if(charPointer)
         *charPointer = '\0';
 
-    //estraggo chiave privata
-    //EVP_PKEY * prvKey_s=readPrivateKey("server", password, "server");
-
     //azzero i set dei descrittori
 	FD_ZERO(&master);
 	FD_ZERO(&reads_fds);
