@@ -97,7 +97,8 @@ string canonicalization(string path){
 	char* canon_path = realpath(path.c_str(), NULL);
 	if(!canon_path){
 		perror("error canonicalization");
-		exit(-1);
+		//exit(-1);
+		return "error";
 	}
 
 	return canon_path;

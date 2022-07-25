@@ -429,7 +429,9 @@ int main(int argc, char *const argv[])
             
             // controllo che il filename non contenga caratteri speciali
             rett = control_white_list(filename);
-            while (!rett)
+            path = (string)constants::DIR_CLIENTS + (string)username + "/" + filename;
+            canon_file_name = canonicalization(path);
+            while (!rett || canon_file_name=="error")
             {
                 cout << "Filename not valid" << endl;
                 cout << "Please, insert a valid filename:" << endl;
@@ -445,9 +447,10 @@ int main(int argc, char *const argv[])
 
                 // controllo che lo username non contenga caratteri speciali
                 rett = control_white_list(filename);
+
+                path = (string)constants::DIR_CLIENTS + (string)username + "/" + filename;
+                canon_file_name = canonicalization(path);
             }
-            path = (string)constants::DIR_CLIENTS + (string)username + "/" + filename;
-            canon_file_name = canonicalization(path);
             
             //apro il file da caricare
             clear_file= fopen(canon_file_name.c_str(), "rb");
@@ -582,7 +585,7 @@ int main(int argc, char *const argv[])
             //          DOWNLOAD
             //******************************************************************************
 
-            //chiedo il file da caricare
+            //chiedo il file da scaricare
             cout << endl << "Please, type the file to download: " << endl;
             memset(filename, 0, constants::DIM_FILENAME);
             if (!fgets(filename, constants::DIM_FILENAME, stdin))
@@ -639,7 +642,120 @@ int main(int argc, char *const argv[])
             send_obj(sd, msg_to_send, msg_send_len);
             free(msg_to_send);
 
-            cout << "Sended message: <IV | AAD | tag | download_request | filename >" << endl;            
+            cout << "Sended message: <IV | AAD | tag | download_request | filename >" << endl;
+
+            msg_receive_len = receive_len(sd);
+            msg_to_receive= (unsigned char*)malloc(msg_receive_len);
+            if(!msg_to_receive){
+                perror("Error during malloc()");
+                exit(-1);
+            }
+            receive_obj(sd, msg_to_receive, msg_receive_len);
+
+            // decifro il messaggio
+            free(plaintext);
+            plaintext = symmetricDecription(msg_to_receive, msg_receive_len, &pt_len, session_key, &count_s);  
+
+            if(!strncmp((const char*)plaintext, constants::Not_acknowledgment, sizeof(constants::Not_acknowledgment)))
+            {
+                cout << "Received message <IV | AAD | tag | Not_Acknowledgement_type>" << endl;
+                cout << "File doesn't exist" << endl;
+                cout << "Download request: unsuccess" << endl << endl;
+
+                free(plaintext);
+                free(msg_to_receive);
+
+                continue;
+
+            }else{
+
+                cout << "Received message <IV | AAD | tag | Size_type | size file>" << endl;
+
+                //estraggo il size
+                subControl(pt_len,constants::TYPE_CODE_SIZE );
+                int size_dim = pt_len - constants::TYPE_CODE_SIZE;
+                unsigned char * dim_file_str=(unsigned char *)malloc(size_dim);
+                if(!dim_file_str){
+                    perror("malloc(): ");
+                    exit(-1);
+                }
+                extract_data_from_array(dim_file_str, plaintext, constants::TYPE_CODE_SIZE, pt_len);
+
+                dim_file = strtoll((const char*)dim_file_str, NULL, 10);
+                
+                //creo nuovo file
+                string new_file_name=(string)filename;
+                string path=(string)constants::DIR_CLIENTS+username+"/"+new_file_name;
+                
+                if(!access(path.c_str(), 0)){
+                    //se il file esiste già devo eliminarlo 
+                    remove(path.c_str());                                
+                }
+                
+                FILE* clear_file = fopen(path.c_str(), "a");
+                if(!clear_file) { 
+                    perror("Error: cannot open file");
+                    exit(1); 
+                }
+                
+                //ciclo per ricevere tanti messaggi in base alla dimensione del file
+                long long int dim_write=0;
+                while(dim_file - dim_write > constants::MAX_READ)
+                {
+                    //aspetto di ricevere la dimensione del prossimo messaggio
+                    msg_receive_len = receive_len(sd);
+                    free(msg_to_receive);
+                    msg_to_receive= (unsigned char*)malloc(msg_receive_len);
+                    if(!msg_to_receive){
+                        perror("Error during malloc()");
+                        exit(-1);
+                    }
+
+                    //ricevo il messaggio di sessione
+                    receive_obj(sd, msg_to_receive, msg_receive_len);
+                    cout << "Received message <IV | AAD | tag | file content>" << endl;
+
+                    //decifro il messaggio ricevuto
+                    free(plaintext);
+                    plaintext = symmetricDecription(msg_to_receive, msg_receive_len, &pt_len, session_key, &count_s);
+                    sumControl(dim_write, pt_len);
+                    dim_write+=pt_len;
+
+                    ret = fwrite(plaintext, 1, pt_len, clear_file);
+                    if(ret < pt_len) { 
+                        perror("Error while writing the file"); 
+                        exit(1); 
+                    }
+                }
+
+                //leggo l'ultimo pezzo
+
+                //aspetto di ricevere la dimensione del prossimo messaggio
+                msg_receive_len = receive_len(sd);
+                free(msg_to_receive);
+                msg_to_receive= (unsigned char*)malloc(msg_receive_len);
+                if(!msg_to_receive){
+                    perror("Error during malloc()");
+                    exit(-1);
+                }
+                receive_obj(sd, msg_to_receive, msg_receive_len);
+                cout << "Received message <IV | AAD | tag | file content>" << endl;
+
+                //decifro il messaggio ricevuto
+                free(plaintext);
+                plaintext = symmetricDecription(msg_to_receive, msg_receive_len, &pt_len, session_key, &count_s);
+                ret = fwrite(plaintext, 1, dim_file-dim_write, clear_file);
+                if(ret < pt_len) { 
+                    perror("Error while writing the file"); 
+                    exit(1); 
+                }
+
+                cout << "Download: success" << endl << endl;
+
+                free(plaintext);
+                free(msg_to_receive);
+
+            }
 
             break;
 
@@ -648,6 +764,152 @@ int main(int argc, char *const argv[])
             //          DELETE
             //******************************************************************************
 
+            //chiedo il file da eliminare
+            cout << endl << "Please, type the file to delete: " << endl;
+            memset(filename, 0, constants::DIM_FILENAME);
+            if (!fgets(filename, constants::DIM_FILENAME, stdin))
+            {
+                perror("Error during the reading from stdin\n");
+                exit(-1);
+            }
+            charPointer = strchr(filename, '\n');
+            if (charPointer)
+                *charPointer = '\0';
+            
+            // controllo che il filename non contenga caratteri speciali
+            rett = control_white_list(filename);
+            while (!rett)
+            {
+                cout << "Filename not valid" << endl;
+                cout << "Please, insert a valid filename:" << endl;
+                memset(filename, 0, constants::DIM_FILENAME);
+                if (!fgets(filename, constants::DIM_FILENAME, stdin))
+                {
+                    perror("Error during the reading from stdin\n");
+                    exit(-1);
+                }
+                charPointer = strchr(filename, '\n');
+                if (charPointer)
+                    *charPointer = '\0';
+
+                // controllo che lo username non contenga caratteri speciali
+                rett = control_white_list(filename);
+            }
+
+            // messaggio di richiesta: <IV | AAD | tag | delete_request | filename >
+            array=(unsigned char*)malloc(constants::TYPE_CODE_SIZE);
+            if(array == NULL){
+                perror("Error during malloc()\n");
+                exit(-1);
+            }
+            memcpy(array, constants::Delete_request, constants::TYPE_CODE_SIZE);
+
+            sumControl(constants::TYPE_CODE_SIZE, sizeof(filename) );
+            pt_len = constants::TYPE_CODE_SIZE + sizeof(filename) ;
+            plaintext = (unsigned char *)malloc(pt_len);
+            if (!plaintext)
+            {
+                perror("Error during malloc()");
+                exit(-1);
+            }
+            memcpy(plaintext, array, constants::TYPE_CODE_SIZE);
+            concatElements(plaintext, (unsigned char*)filename, constants::TYPE_CODE_SIZE, sizeof(filename));
+
+            msg_to_send= symmetricEncryption(plaintext, pt_len, session_key, &msg_send_len, &count_c);
+
+            send_int(sd, msg_send_len);
+            send_obj(sd, msg_to_send, msg_send_len);
+            free(msg_to_send);
+
+            cout << "Sended message: <IV | AAD | tag | delete_request | filename >" << endl;
+
+            msg_receive_len = receive_len(sd);
+            msg_to_receive= (unsigned char*)malloc(msg_receive_len);
+            if(!msg_to_receive){
+                perror("Error during malloc()");
+                exit(-1);
+            }
+            receive_obj(sd, msg_to_receive, msg_receive_len);
+
+            // decifro il messaggio
+            free(plaintext);
+            plaintext = symmetricDecription(msg_to_receive, msg_receive_len, &pt_len, session_key, &count_s); 
+
+            if(!strncmp((const char*)plaintext, constants::Not_acknowledgment, sizeof(constants::Not_acknowledgment)))
+            {
+                cout << "Received message <IV | AAD | tag | Not_Acknowledgement_type>" << endl;
+                cout << "File doesn't exist" << endl;
+                cout << "Delete request: unsuccess" << endl << endl;
+
+                free(plaintext);
+                free(msg_to_receive);
+
+                continue;
+
+            }else{
+                cout << "Received message <IV | AAD | tag | Ask_confirmation_type>" << endl;
+
+                rett=false;
+                while(!rett){
+                    cout << "Are you sure?(Yes/No)" << endl;
+                    char resp[4];
+                    memset(resp, 0, 4);
+                    if (!fgets(resp, 4, stdin))
+                    {
+                        perror("Error during the reading from stdin\n");
+                        exit(-1);
+                    }
+                    charPointer = strchr(resp, '\n');
+                    if (charPointer)
+                        *charPointer = '\0';
+
+                    cout << "resp: " << resp << endl;
+                    if(!strcmp(resp, "Yes")){
+                        rett=true;
+                        send_ack(sd,session_key, &count_c);
+
+                        msg_receive_len = receive_len(sd);
+                        free(msg_to_receive);
+                        msg_to_receive= (unsigned char*)malloc(msg_receive_len);
+                        if(!msg_to_receive){
+                            perror("Error during malloc()");
+                            exit(-1);
+                        }
+                        receive_obj(sd, msg_to_receive, msg_receive_len);
+
+                        // decifro il messaggio
+                        free(plaintext);
+                        plaintext = symmetricDecription(msg_to_receive, msg_receive_len, &pt_len, session_key, &count_s); 
+
+                        if(!strncmp((const char*)plaintext, constants::Acknowledgment, sizeof(constants::Acknowledgment))){
+                            cout << "Delete request: success" << endl << endl;
+
+                            free(plaintext);
+                            free(msg_to_receive);  
+
+                        }else{
+                            cout << "Delete request: unsuccess" << endl << endl;
+
+                            free(plaintext);
+                            free(msg_to_receive);  
+                        }
+
+                    }else if(!strcmp(resp, "No")){
+                        rett=true;
+                        send_nack(sd, session_key, &count_c);
+                        cout << "Delete request: unsuccess" << endl << endl;
+
+                        free(plaintext);
+                        free(msg_to_receive);                    
+
+                    }else{
+                        rett=false;
+
+                    }
+                }        
+
+            }
+
             break;
 
         case 4:
@@ -655,12 +917,161 @@ int main(int argc, char *const argv[])
             //          LIST
             //******************************************************************************
 
+            // messaggio di richiesta: <IV | AAD | tag | delete_request | filename >
+            array=(unsigned char*)malloc(constants::TYPE_CODE_SIZE);
+            if(array == NULL){
+                perror("Error during malloc()\n");
+                exit(-1);
+            }
+            memcpy(array, constants::List_request, constants::TYPE_CODE_SIZE);
+
+            pt_len = constants::TYPE_CODE_SIZE;
+            plaintext = (unsigned char *)malloc(pt_len);
+            if (!plaintext)
+            {
+                perror("Error during malloc()");
+                exit(-1);
+            }
+            memcpy(plaintext, array, constants::TYPE_CODE_SIZE);
+            
+            msg_to_send= symmetricEncryption(plaintext, pt_len, session_key, &msg_send_len, &count_c);
+
+            send_int(sd, msg_send_len);
+            send_obj(sd, msg_to_send, msg_send_len);
+            free(msg_to_send);
+
+            cout << "Sended message: <IV | AAD | tag | List_request >" << endl;
+
             break;
 
         case 5:
             //******************************************************************************
             //          RENAME
             //******************************************************************************
+
+            //chiedo il file da rinominare
+            char old_filename[constants::DIM_FILENAME];
+            char new_filename[constants::DIM_FILENAME];
+            cout << endl << "Please, type the file to rename: " << endl;
+            memset(old_filename, 0, constants::DIM_FILENAME);
+            if (!fgets(old_filename, constants::DIM_FILENAME, stdin))
+            {
+                perror("Error during the reading from stdin\n");
+                exit(-1);
+            }
+            charPointer = strchr(old_filename, '\n');
+            if (charPointer)
+                *charPointer = '\0';
+            
+            // controllo che il filename non contenga caratteri speciali
+            rett = control_white_list(old_filename);
+            while (!rett)
+            {
+                cout << "Filename not valid" << endl;
+                cout << "Please, insert a valid filename:" << endl;
+                memset(old_filename, 0, constants::DIM_FILENAME);
+                if (!fgets(old_filename, constants::DIM_FILENAME, stdin))
+                {
+                    perror("Error during the reading from stdin\n");
+                    exit(-1);
+                }
+                charPointer = strchr(old_filename, '\n');
+                if (charPointer)
+                    *charPointer = '\0';
+
+                // controllo che lo username non contenga caratteri speciali
+                rett = control_white_list(old_filename);
+            }
+
+            cout << endl << "Please, type the new filename: " << endl;
+            memset(new_filename, 0, constants::DIM_FILENAME);
+            if (!fgets(new_filename, constants::DIM_FILENAME, stdin))
+            {
+                perror("Error during the reading from stdin\n");
+                exit(-1);
+            }
+            charPointer = strchr(new_filename, '\n');
+            if (charPointer)
+                *charPointer = '\0';
+            
+            // controllo che il filename non contenga caratteri speciali
+            rett = control_white_list(new_filename);
+            while (!rett)
+            {
+                cout << "Filename not valid" << endl;
+                cout << "Please, insert a valid filename:" << endl;
+                memset(new_filename, 0, constants::DIM_FILENAME);
+                if (!fgets(new_filename, constants::DIM_FILENAME, stdin))
+                {
+                    perror("Error during the reading from stdin\n");
+                    exit(-1);
+                }
+                charPointer = strchr(new_filename, '\n');
+                if (charPointer)
+                    *charPointer = '\0';
+
+                // controllo che lo username non contenga caratteri speciali
+                rett = control_white_list(new_filename);
+            }
+
+            // messaggio di richiesta: <IV | AAD | tag | rename_request | old_filename | new_filename >
+            array=(unsigned char*)malloc(constants::TYPE_CODE_SIZE);
+            if(array == NULL){
+                perror("Error during malloc()\n");
+                exit(-1);
+            }
+            memcpy(array, constants::Rename_request, constants::TYPE_CODE_SIZE);
+
+            sumControl(constants::TYPE_CODE_SIZE, sizeof(old_filename) );
+            sumControl(constants::TYPE_CODE_SIZE + sizeof(old_filename), sizeof(new_filename) );
+            pt_len = constants::TYPE_CODE_SIZE + sizeof(old_filename) + sizeof(new_filename);
+            plaintext = (unsigned char *)malloc(pt_len);
+            if (!plaintext)
+            {
+                perror("Error during malloc()");
+                exit(-1);
+            }
+            memcpy(plaintext, array, constants::TYPE_CODE_SIZE);
+            concatElements(plaintext, (unsigned char*)old_filename, constants::TYPE_CODE_SIZE, sizeof(old_filename));
+            concatElements(plaintext, (unsigned char*)new_filename, constants::TYPE_CODE_SIZE+sizeof(old_filename), sizeof(new_filename));
+
+            msg_to_send= symmetricEncryption(plaintext, pt_len, session_key, &msg_send_len, &count_c);
+
+            send_int(sd, msg_send_len);
+            send_obj(sd, msg_to_send, msg_send_len);
+            free(msg_to_send);
+
+            cout << "Sended message: <IV | AAD | tag | rename_request | old_filename | new_filename >" << endl;
+
+            msg_receive_len = receive_len(sd);
+            msg_to_receive= (unsigned char*)malloc(msg_receive_len);
+            if(!msg_to_receive){
+                perror("Error during malloc()");
+                exit(-1);
+            }
+            receive_obj(sd, msg_to_receive, msg_receive_len);
+
+            // decifro il messaggio
+            free(plaintext);
+            plaintext = symmetricDecription(msg_to_receive, msg_receive_len, &pt_len, session_key, &count_s); 
+
+            if(!strncmp((const char*)plaintext, constants::Not_acknowledgment, sizeof(constants::Not_acknowledgment)))
+            {
+                cout << "Received message <IV | AAD | tag | Not_Acknowledgement_type>" << endl;
+                cout << "File doesn't exist" << endl;
+                cout << "Rename request: unsuccess" << endl << endl;
+
+                free(plaintext);
+                free(msg_to_receive);
+
+                continue;
+            }else{
+                cout << "Received message <IV | AAD | tag | Acknowledgement_type>" << endl;
+                cout << "Rename request: success" << endl << endl;
+
+                free(plaintext);
+                free(msg_to_receive);
+            }
 
             break;
 
