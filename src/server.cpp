@@ -449,22 +449,24 @@ int main(int argc, char* const argv[]) {
                             //creo nuovo file
                             string new_file_name=(string)filename;
                             string path=(string)constants::DIR_SERVER+username+"/"+new_file_name;
-                            
-                            //prima di fare la fopen bisogna controllare che il file non esista già
-                            //se esiste già non deve esserre mandato l'ack, ma un nack
-                            
-                            if(access(path.c_str(), 0)){
 
-                                //invio ack
-                                send_ack(new_fd, session_key, &count_s);
-                                
-                            }else{
-                                
-                                //invio nack
+                            rett = control_white_list(filename);
+
+                            if(rett==false){
                                 send_nack(new_fd, session_key, &count_s);
-                                cout << "Upload: unsuccess" << endl << endl;
+                                cout << "Upload request: unsuccess" << endl << endl;
+                                free(plaintext);
+                                free(msg_to_receive);
+                                free(type);
                                 continue;
                             }
+                            
+                            if(!access(path.c_str(), 0)){
+                                //se il file esiste già devo eliminarlo 
+                                remove(path.c_str());                                
+                            }
+                            //invio ack
+                            send_ack(new_fd, session_key, &count_s);
 
                             FILE* clear_file = fopen(path.c_str(), "a");
                             if(!clear_file) { 
@@ -473,7 +475,7 @@ int main(int argc, char* const argv[]) {
                             }
                             
                             //ciclo per ricevere tanti messaggi in base alla dimensione del file
-                            int dim_write=0;
+                            long long int dim_write=0;
                             while(dim_file - dim_write > constants::MAX_READ)
                             {
                                 //aspetto di ricevere la dimensione del prossimo messaggio
@@ -519,7 +521,7 @@ int main(int argc, char* const argv[]) {
                             free(plaintext);
                             plaintext = symmetricDecription(msg_to_receive, msg_receive_len, &pt_len, session_key, &count_c);
 
-                            ret = fwrite(plaintext, 1, pt_len, clear_file);
+                            ret = fwrite(plaintext, 1, dim_file-dim_write, clear_file);
                             if(ret < pt_len) { 
                                 perror("Error while writing the file"); 
                                 exit(1); 
@@ -544,7 +546,117 @@ int main(int argc, char* const argv[]) {
                             extract_data_from_array((unsigned char*)filename, plaintext, constants::TYPE_CODE_SIZE, constants::DIM_FILENAME);
 
                             //controllo che il file esista e faccio la canonicalizzazione
+                            //creo nuovo file
+                            string new_file_name=(string)filename;
+                            string path=(string)constants::DIR_SERVER+username+"/"+new_file_name;
+                            string canon_file_name = canonicalization(path);
+                            rett = control_white_list(filename);
+
+                            if(canon_file_name=="error" || rett==false){
+                                send_nack(new_fd, session_key, &count_s);
+                                cout << endl;
+                                free(plaintext);
+                                free(msg_to_receive);
+                                free(type);
+                                continue;
+                            }
+
+                            //apro il file da inviare
+                            FILE *clear_file= fopen(canon_file_name.c_str(), "rb");
+                            if(!clear_file){
+                                perror("Error: cannot open file ");
+                                continue;
+                            }
                             
+                            //leggo la dimensione del file
+                            dim_file = fs::file_size(canon_file_name);
+
+                            // messaggio di richiesta: <IV | AAD | tag | upload_request | filename | size>
+                            type=(unsigned char*)malloc(constants::TYPE_CODE_SIZE);
+                            if(type == NULL){
+                                perror("Error during malloc()\n");
+                                exit(-1);
+                            }
+                            memcpy(type, constants::Size, constants::TYPE_CODE_SIZE);
+
+                            sumControl(constants::TYPE_CODE_SIZE , sizeof(to_string(dim_file)));
+                            pt_len = constants::TYPE_CODE_SIZE  + sizeof(to_string(dim_file));
+                            plaintext = (unsigned char *)malloc(pt_len);
+                            if (!plaintext)
+                            {
+                                perror("Error during malloc()");
+                                exit(-1);
+                            }
+                            memcpy(plaintext, type, constants::TYPE_CODE_SIZE);
+                            concatElements(plaintext, (unsigned char*)to_string(dim_file).c_str(), constants::TYPE_CODE_SIZE, sizeof(to_string(dim_file)));
+
+                            msg_to_send= symmetricEncryption(plaintext, pt_len, session_key, &msg_send_len, &count_s);
+
+                            send_int(new_fd, msg_send_len);
+                            send_obj(new_fd, msg_to_send, msg_send_len);
+                            free(msg_to_send);
+
+                            cout << "Sendend message <IV | AAD | tag | Size_type | size file>" << endl;
+
+                            //leggo il contenuto del file
+                            long long int dim_read=0;
+
+                            while(dim_file - dim_read > constants::MAX_READ){
+
+                                free(plaintext);
+                                plaintext= (unsigned char*)malloc(constants::MAX_READ);
+                                if(!plaintext){
+                                    perror("Error during malloc()");
+                                    exit(-1);
+                                }
+                                ret= fread(plaintext, 1, constants::MAX_READ, clear_file);
+                                if(ret<constants::MAX_READ){
+                                    perror("Error while reading file");
+                                    exit(1);
+                                }
+                                
+                                //mando il file un pezzo per volta
+                                // messaggio: <IV | AAD | tag | file_content>
+
+                                msg_to_send= symmetricEncryption(plaintext, constants::MAX_READ, session_key, &msg_send_len, &count_s);
+
+                                send_int(new_fd, msg_send_len);
+                                send_obj(new_fd, msg_to_send, msg_send_len);
+
+                                cout << "Sendend message <IV | AAD | tag | file content>" << endl;
+
+                                free(msg_to_send);
+
+                                sumControl(dim_read, constants::MAX_READ);
+                                dim_read+=constants::MAX_READ;
+
+                            }
+
+                            free(plaintext);
+                            plaintext= (unsigned char*)malloc(dim_file - dim_read);
+                            if(!plaintext){
+                                perror("Error during malloc()");
+                                exit(-1);
+                            }
+                            ret= fread(plaintext, 1, dim_file-dim_read, clear_file);
+                            if(ret<dim_file-dim_read){
+                                perror("Error while reading file");
+                                exit(1);
+                            }
+
+                            // messaggio: <IV | AAD | tag | file_content>
+
+                            msg_to_send= symmetricEncryption(plaintext, dim_file-dim_read, session_key, &msg_send_len, &count_s);
+
+                            send_int(new_fd, msg_send_len);
+                            send_obj(new_fd, msg_to_send, msg_send_len);
+                            free(msg_to_send);
+
+                            cout << "Sendend message <IV | AAD | tag | file content>" << endl;
+                            cout << "Download request: success" << endl << endl;
+
+                            free(plaintext);
+                            free(msg_to_receive);
 
                         }else if(command==constants::Delete_request){
 
@@ -553,6 +665,75 @@ int main(int argc, char* const argv[]) {
                             //******************************************************************************
                             cout << endl << "Delete request..." << endl;
 
+                            //estraggo il filename  
+                            extract_data_from_array((unsigned char*)filename, plaintext, constants::TYPE_CODE_SIZE, constants::DIM_FILENAME);
+
+                            //controllo che il file esista e faccio la canonicalizzazione
+                            //creo nuovo file
+                            string new_file_name=(string)filename;
+                            string path=(string)constants::DIR_SERVER+username+"/"+new_file_name;
+                            string canon_file_name = canonicalization(path);
+
+                            if(canon_file_name=="error"){
+                                send_nack(new_fd, session_key, &count_s);
+                                cout << "Delete request: unsuccess" << endl << endl;
+                                free(plaintext);
+                                free(msg_to_receive);
+                                free(type);
+                                continue;
+                            }
+
+                            pt_len = constants::TYPE_CODE_SIZE;
+                            plaintext = (unsigned char *)malloc(pt_len);
+                            if (!plaintext)
+                            {
+                                perror("Error during malloc()");
+                                exit(-1);
+                            }
+                            memcpy(plaintext, constants::Ask_confirmation, constants::TYPE_CODE_SIZE);
+
+                            msg_to_send= symmetricEncryption(plaintext, pt_len, session_key, &msg_send_len, &count_s);
+
+                            send_int(new_fd, msg_send_len);
+                            send_obj(new_fd, msg_to_send, msg_send_len);
+                            free(msg_to_send);
+
+                            cout << "Sended message: <IV | AAD | tag | Ask_confirmation_type >" << endl;
+
+                            msg_receive_len = receive_len(new_fd);
+                            free(msg_to_receive);
+                            msg_to_receive= (unsigned char*)malloc(msg_receive_len);
+                            if(!msg_to_receive){
+                                perror("Error during malloc()");
+                                exit(-1);
+                            }
+                            receive_obj(new_fd, msg_to_receive, msg_receive_len);
+
+                            // decifro il messaggio
+                            free(plaintext);
+                            plaintext = symmetricDecription(msg_to_receive, msg_receive_len, &pt_len, session_key, &count_c); 
+
+                            if(!strncmp((const char*)plaintext, constants::Not_acknowledgment, sizeof(constants::Not_acknowledgment)))
+                            {
+                                cout << "Received message <IV | AAD | tag | Not_acknowledgement_type>" << endl;
+                                cout << "Delete request: unsuccess" << endl << endl;
+
+                                free(plaintext);
+                                free(msg_to_receive);
+                                free(type);
+
+                                continue;
+                            }else{
+                                cout << "Received message <IV | AAD | tag | Acknowledgement_type>" << endl;
+                                remove(canon_file_name.c_str());
+                                send_ack(new_fd, session_key, &count_s);
+                                 cout << "Delete request: success" << endl << endl;
+
+                                free(plaintext);
+                                free(msg_to_receive);
+                                free(type);
+                            }
+
                         }else if(command==constants::List_request){
 
                             //******************************************************************************
@@ -560,12 +741,64 @@ int main(int argc, char* const argv[]) {
                             //******************************************************************************
                             cout << endl << "List request..." << endl;
 
+                            string path=(string)constants::DIR_SERVER+username;
+
+                            for (const auto & file : fs::directory_iterator(path)){
+                                cout << file << endl;
+                            }
+
+
                         }else if(command==constants::Rename_request){
 
                             //******************************************************************************
                             //          RENAME
                             //******************************************************************************
                             cout << endl << "Rename request..." << endl;
+
+                            char old_filename[constants::DIM_FILENAME];
+                            char new_filename[constants::DIM_FILENAME];
+
+                            //estraggo old_filename  
+                            extract_data_from_array((unsigned char*)old_filename, plaintext, constants::TYPE_CODE_SIZE, constants::DIM_FILENAME);
+                            //estraggo new_filename  
+                            extract_data_from_array((unsigned char*)new_filename, plaintext, constants::TYPE_CODE_SIZE+constants::DIM_FILENAME, pt_len);
+
+                            //controllo che il file esista e faccio la canonicalizzazione
+                            //creo nuovo file
+                            string temp =(string)old_filename;
+                            string old_path=(string)constants::DIR_SERVER+username+"/"+ temp;
+                            string old_canon_file_name = canonicalization(path);
+
+                            rett = control_white_list(new_filename);
+
+                            if(old_canon_file_name=="error" || rett==false){
+                                send_nack(new_fd, session_key, &count_s);
+                                cout << "Rename request: unsuccess" << endl << endl;
+                                free(plaintext);
+                                free(msg_to_receive);
+                                free(type);
+                                continue;
+                            }
+
+                            string new_path=(string)constants::DIR_SERVER+username+"/"+(string)new_filename;
+
+                            ret= rename(old_path.c_str(), new_path.c_str());
+                            if(!ret){
+                                send_ack(new_fd, session_key, &count_s);
+                                cout << "Rename request: success" << endl << endl;
+                                free(plaintext);
+                                free(msg_to_receive);
+                                free(type);
+
+                            }else{
+                                send_nack(new_fd, session_key, &count_s);
+                                cout << "Rename request: unsuccess" << endl << endl;
+                                free(plaintext);
+                                free(msg_to_receive);
+                                free(type);
+                                continue;
+
+                            }                            
 
                         }else {
 
