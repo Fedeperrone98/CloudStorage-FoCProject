@@ -613,7 +613,7 @@ int main(int argc, char *const argv[])
                 if (charPointer)
                     *charPointer = '\0';
 
-                // controllo che lo username non contenga caratteri speciali
+                // controllo che lo filename non contenga caratteri speciali
                 rett = control_white_list(filename);
             }
 
@@ -943,7 +943,7 @@ int main(int argc, char *const argv[])
             cout << "Sended message: <IV | AAD | tag | List_request >" << endl;
 
             msg_receive_len = receive_len(sd);
-            //free(msg_to_receive);
+            
             msg_to_receive= (unsigned char*)malloc(msg_receive_len);
             if(!msg_to_receive){
                 perror("Error during malloc()");
@@ -1011,7 +1011,7 @@ int main(int argc, char *const argv[])
                 if (charPointer)
                     *charPointer = '\0';
 
-                // controllo che lo username non contenga caratteri speciali
+                // controllo che il vecchio filename non contenga caratteri speciali
                 rett = control_white_list(old_filename);
             }
 
@@ -1026,7 +1026,7 @@ int main(int argc, char *const argv[])
             if (charPointer)
                 *charPointer = '\0';
             
-            // controllo che il filename non contenga caratteri speciali
+            // controllo che il nuovo filename non contenga caratteri speciali
             rett = control_white_list(new_filename);
             while (!rett)
             {
@@ -1042,7 +1042,7 @@ int main(int argc, char *const argv[])
                 if (charPointer)
                     *charPointer = '\0';
 
-                // controllo che lo username non contenga caratteri speciali
+                // controllo che il nuovo filename non contenga caratteri speciali
                 rett = control_white_list(new_filename);
             }
 
@@ -1075,6 +1075,7 @@ int main(int argc, char *const argv[])
 
             cout << "Sended message: <IV | AAD | tag | rename_request | old_filename | new_filename >" << endl;
 
+            //aspetto di ricevere l'ack
             msg_receive_len = receive_len(sd);
             msg_to_receive= (unsigned char*)malloc(msg_receive_len);
             if(!msg_to_receive){
