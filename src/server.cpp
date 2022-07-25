@@ -497,15 +497,17 @@ int main(int argc, char* const argv[]) {
                             //decifro il messaggio ricevuto
                             free(plaintext);
                             plaintext = symmetricDecription(msg_to_receive, msg_receive_len, &pt_len, session_key, &count_c);
-
+                            
                             ret = fwrite(plaintext, 1, dim_file-dim_write, clear_file);
-                            if(ret < pt_len) { 
+                            
+                            if(ret < dim_file-dim_write) { 
                                 perror("Error while writing the file"); 
                                 exit(1); 
                             }
 
                             cout << "Upload: success" << endl << endl;
 
+                            fclose(clear_file);
                             free(plaintext);
                             free(type);
                             free(msg_to_receive);
@@ -632,6 +634,7 @@ int main(int argc, char* const argv[]) {
                             cout << "Sendend message <IV | AAD | tag | file content>" << endl;
                             cout << "Download request: success" << endl << endl;
 
+                            fclose(clear_file);
                             free(plaintext);
                             free(msg_to_receive);
 

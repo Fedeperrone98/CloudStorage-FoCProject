@@ -565,6 +565,7 @@ int main(int argc, char *const argv[])
                 cout << "Sendend message <IV | AAD | tag | file content>" << endl;
                 cout << "Upload request: success" << endl << endl;
 
+                fclose(clear_file);
                 free(plaintext);
                 free(msg_to_receive);
 
@@ -752,6 +753,7 @@ int main(int argc, char *const argv[])
 
                 cout << "Download: success" << endl << endl;
 
+                fclose(clear_file);
                 free(plaintext);
                 free(msg_to_receive);
 
