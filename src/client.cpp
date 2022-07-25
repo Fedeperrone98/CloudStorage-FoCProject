@@ -942,6 +942,38 @@ int main(int argc, char *const argv[])
 
             cout << "Sended message: <IV | AAD | tag | List_request >" << endl;
 
+            msg_receive_len = receive_len(sd);
+            //free(msg_to_receive);
+            msg_to_receive= (unsigned char*)malloc(msg_receive_len);
+            if(!msg_to_receive){
+                perror("Error during malloc()");
+                exit(-1);
+            }
+            receive_obj(sd, msg_to_receive, msg_receive_len);
+
+            // decifro il messaggio
+            free(plaintext);
+            plaintext = symmetricDecription(msg_to_receive, msg_receive_len, &pt_len, session_key, &count_s); 
+            
+            
+            if(!strncmp((const char*)plaintext, constants::List_file, sizeof(constants::List_file))){
+                string list;
+                extract_data_from_array((unsigned char*)list.c_str(), plaintext, constants::TYPE_CODE_SIZE, pt_len);
+                cout << endl << "List:" << endl;
+                char * array_list;
+                array_list=strtok((char*)list.c_str(), ",");
+
+                while(array_list!=NULL){
+                    printf("%s\n", array_list);
+                    array_list=strtok(NULL, ",");
+                }
+                cout << endl;
+                cout << "list request: success" << endl << endl;
+
+                free(plaintext);
+                free(msg_to_receive);
+            }
+
             break;
 
         case 5:

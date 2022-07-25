@@ -742,10 +742,51 @@ int main(int argc, char* const argv[]) {
                             cout << endl << "List request..." << endl;
 
                             string path=(string)constants::DIR_SERVER+username;
+                            string list="";
+                            int count=0;
+                            string file_key=username+(string)constants::SUFFIX_PUBKEY;
 
                             for (const auto & file : fs::directory_iterator(path)){
-                                cout << file << endl;
+                                if (fs::path(file).filename().string()==file_key)
+                                    continue;
+
+                                if(count==0){
+                                    list.append(fs::path(file).filename().string());
+                                    count=1;
+                                    continue;
+                                }
+                                    
+                                list.append(","+fs::path(file).filename().string());
                             }
+
+                            cout << "list: " << list<< endl;
+
+                            type=(unsigned char*)malloc(constants::TYPE_CODE_SIZE);
+                            if(type == NULL){
+                                perror("Error during malloc()\n");
+                                exit(-1);
+                            }
+                            memcpy(type, constants::List_file, constants::TYPE_CODE_SIZE);
+
+                            sumControl(constants::TYPE_CODE_SIZE, sizeof(list) );
+                            pt_len = constants::TYPE_CODE_SIZE + sizeof(list) ;
+                            plaintext = (unsigned char *)malloc(pt_len);
+                            if (!plaintext)
+                            {
+                                perror("Error during malloc()");
+                                exit(-1);
+                            }
+                            memcpy(plaintext, type, constants::TYPE_CODE_SIZE);
+                            concatElements(plaintext, (unsigned char*)list.c_str(), constants::TYPE_CODE_SIZE, sizeof(list));
+
+                            msg_to_send= symmetricEncryption(plaintext, pt_len, session_key, &msg_send_len, &count_s);
+
+                            send_int(new_fd, msg_send_len);
+                            send_obj(new_fd, msg_to_send, msg_send_len);
+                            free(msg_to_send);
+
+                            cout << "Sended message: <IV | AAD | tag | List_file | list >" << endl;
+
 
 
                         }else if(command==constants::Rename_request){
