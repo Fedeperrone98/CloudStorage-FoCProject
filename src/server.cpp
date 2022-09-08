@@ -739,6 +739,8 @@ int main(int argc, char* const argv[]) {
                                 list.append(","+fs::path(file).filename().string());
                             }
 
+                            //cout << "list: " << list << endl;
+
                             type=(unsigned char*)malloc(constants::TYPE_CODE_SIZE);
                             if(type == NULL){
                                 perror("Error during malloc()\n");
