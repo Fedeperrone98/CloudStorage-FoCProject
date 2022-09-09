@@ -979,7 +979,6 @@ int main(int argc, char *const argv[])
                 cout << "list request: success" << endl << endl;
 
                 free(plaintext);
-                //mod
                 free(msg_to_receive);
             }
 
