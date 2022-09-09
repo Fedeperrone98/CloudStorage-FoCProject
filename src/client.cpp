@@ -957,12 +957,19 @@ int main(int argc, char *const argv[])
             plaintext = symmetricDecription(msg_to_receive, msg_receive_len, &pt_len, session_key, &count_s); 
             
             if(!strncmp((const char*)plaintext, constants::List_file, sizeof(constants::List_file))){
-                string list;
-                extract_data_from_array((unsigned char*)list.c_str(), plaintext, constants::TYPE_CODE_SIZE, pt_len);
+                unsigned char * list= (unsigned char*)malloc(pt_len-constants::TYPE_CODE_SIZE+1);
+                if(!list){
+                    perror("Error during malloc()");
+                    exit(-1);
+                }
+                extract_data_from_array(list, plaintext, constants::TYPE_CODE_SIZE, pt_len);
+
+                list[pt_len-constants::TYPE_CODE_SIZE] = '\0';
+                //cout << "list " << list << endl;
                 
                 cout << endl << "List:" << endl;
                 char * array_list;
-                array_list=strtok((char*)list.c_str(), ",");
+                array_list=strtok((char*)list, ",");
 
                 while(array_list!=NULL){
                     printf("%s\n", array_list);
