@@ -38,6 +38,7 @@ void generateNonce(unsigned char* nonce){
 //key 
 
 //function that return Diffie-Hellman low level parameters
+// to generate p e g
 static DH *get_dh2048(void)
 {
     static unsigned char dhp_2048[] = {
@@ -674,10 +675,6 @@ unsigned char* symmetricEncryption(unsigned char *plaintext, int plaintext_len, 
 	ret = EVP_EncryptUpdate(ctx, NULL, &len, AAD, constants::AAD_LEN);
     if(1 != ret)
         handleErrors();
-
-	//ret = EVP_EncryptUpdate(ctx, ciphertext, &len, plaintext, plaintext_len);
-    //if(1 != ret)
-      //  handleErrors();
     
     while(outlen_tot<=plaintext_len-16)
     {
@@ -691,7 +688,6 @@ unsigned char* symmetricEncryption(unsigned char *plaintext, int plaintext_len, 
     if(1 != ret)
         handleErrors();
 
-    //ciphertext_len = len;
     outlen_tot+=len;
 	ret = EVP_EncryptFinal(ctx, ciphertext + outlen_tot, &len);
     if(1 != ret)
@@ -783,9 +779,6 @@ unsigned char* symmetricDecription(unsigned char *recv_buffer, int bufferLen, in
     if(!EVP_DecryptUpdate(ctx, NULL, &len, aad, constants::AAD_LEN))
         handleErrors();
 
-    //if(!EVP_DecryptUpdate(ctx, buffer, &len, ciphertext, ciphertext_len))
-      //  handleErrors();
-
     while(outlen_tot<=ciphertext_len-16)
     {
         if(!EVP_DecryptUpdate(ctx, buffer+outlen_tot, &len, ciphertext+outlen_tot, 16))
@@ -799,7 +792,7 @@ unsigned char* symmetricDecription(unsigned char *recv_buffer, int bufferLen, in
         handleErrors();
     
     outlen_tot+=len;
-    //*plaintext_len = len;
+    
     if(!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, 16, tag))
         handleErrors();
 

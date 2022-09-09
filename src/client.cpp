@@ -614,7 +614,7 @@ int main(int argc, char *const argv[])
                 if (charPointer)
                     *charPointer = '\0';
 
-                // controllo che lo filename non contenga caratteri speciali
+                // controllo che il filename non contenga caratteri speciali
                 rett = control_white_list(filename);
             }
 
@@ -965,7 +965,6 @@ int main(int argc, char *const argv[])
                 extract_data_from_array(list, plaintext, constants::TYPE_CODE_SIZE, pt_len);
 
                 list[pt_len-constants::TYPE_CODE_SIZE] = '\0';
-                //cout << "list " << list << endl;
                 
                 cout << endl << "List:" << endl;
                 char * array_list;

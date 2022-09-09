@@ -154,8 +154,6 @@ int main(int argc, char* const argv[]) {
 
                     string path=(string)constants::DIR_SERVER + (string)username;
                     
-                    //const auto processWorkingDir = fs::current_path();
-                    //const auto existingDir = processWorkingDir / path;
                     const auto existingDir = processWorkingDir / path;
 
                     if(fs::is_directory(path))
